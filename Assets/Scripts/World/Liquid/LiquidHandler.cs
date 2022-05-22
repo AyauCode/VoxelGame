@@ -19,13 +19,15 @@ public class LiquidHandler : MonoBehaviour
     readonly float MaxSpeed = 1f;
 
     Dictionary<Vector3Int, WaterCell> waterCells = new Dictionary<Vector3Int, WaterCell>();
-    // Update is called once per frame
+    
     private void Start()
     {
         countdown = stepDelay;
     }
     void Update()
     {
+        //Only simulate if simulate is true and there are no chunks that are currently regenerating (i.e. their mesh was modified)
+        //The regenerating chunk count is required as otherwise the liquid can update while a chunk is loading its new mesh and thus the liquid will flow through the chunk
         if (simulate && terrainHandler.chunksToRegenerate.Count == 0)
         {
             countdown -= Time.deltaTime;
@@ -50,11 +52,6 @@ public class LiquidHandler : MonoBehaviour
             waterCells.Add(newCell.pos, newCell);
         }
     }
-    /*public void SpawnWaterBlob(int amt)
-    {
-        if (chunkWorldPos == Vector3.zero)
-            this.massArr[GetByteArrayIndex(new Vector3(8, 10, 8), chunkSize)] = amt;
-    }*/
     readonly float MinDraw = 0.01f;
     readonly float MaxDraw = 1.1f;
     List<Vector3Int> waterToRemove = new List<Vector3Int>();
@@ -62,6 +59,9 @@ public class LiquidHandler : MonoBehaviour
     float countdown;
     public void GenerateWaterMesh()
     {
+        /*
+         * TO:DO Generate an actual Mesh at runtime instead of creating/destroying cube prefabs
+         */
         waterToRemove.Clear();
 
         foreach (KeyValuePair<Vector3Int,WaterCell> entry in waterCells)
@@ -115,6 +115,10 @@ public class LiquidHandler : MonoBehaviour
     Dictionary<Vector3Int, WaterCell> waterToAdd = new Dictionary<Vector3Int, WaterCell>();
     public void SimulateWater()
     {
+        /*
+         * The following code is a 3D modification of the code found here: https://w-shadow.com/blog/2009/09/01/simple-fluid-simulation/
+         * This code however is unique to this project as it functions with the chunk implementation of the terrain
+         */
         waterToAdd.Clear();
 
         float Flow = 0;
@@ -264,149 +268,6 @@ public class LiquidHandler : MonoBehaviour
             }
         }
 
-        /*
-        for (int x = 1; x < chunkSize.x - 1; x++)
-        {
-            for (int y = 1; y < chunkSize.y - 1; y++)
-            {
-                for (int z = 1; z < chunkSize.z - 1; z++)
-                {
-                    pos.x = x;
-                    pos.y = y;
-                    pos.z = z;
-
-                    Vector3 basePos = pos;
-                    //Skip inert ground blocks
-                    if (chunkData.GetByteValue(GetByteArrayIndex(pos, chunkSize)) == 1) continue;
-
-                    //Custom push-only flow
-                    Flow = 0;
-                    remaining_mass = massArr[GetByteArrayIndex(pos, chunkSize)];
-
-                    //-------------------------------------------------------
-                    if (remaining_mass <= 0) continue;
-
-                    //The block below this one
-                    pos.x = x;
-                    pos.y = y - 1;
-                    pos.z = z;
-                    if (chunkData.GetByteValue(GetByteArrayIndex(pos, chunkSize)) != 1 && y - 1 != 0)
-                    {
-                        Flow = get_stable_state_b(remaining_mass + massArr[GetByteArrayIndex(pos, chunkSize)]) - massArr[GetByteArrayIndex(pos, chunkSize)];
-                        if (Flow > MinFlow)
-                        {
-                            Flow *= 0.5f; //leads to smoother flow
-                        }
-                        Flow = Mathf.Clamp(Flow, 0, Mathf.Min(MaxSpeed, remaining_mass));
-
-
-                        newMassArr[GetByteArrayIndex(basePos, chunkSize)] -= Flow;
-                        newMassArr[GetByteArrayIndex(pos, chunkSize)] += Flow;
-
-                        remaining_mass -= Flow;
-                    }
-
-                    //-------------------------------------------------------
-                    if (remaining_mass <= 0) continue;
-
-                    pos.x = x - 1;
-                    pos.y = y;
-                    pos.z = z;
-                    //Left
-                    if (chunkData.GetByteValue(GetByteArrayIndex(pos, chunkSize)) != 1 && x - 1 != 0)
-                    {
-                        //Equalize the amount of water in this block and it's neighbour
-                        Flow = (massArr[GetByteArrayIndex(basePos, chunkSize)] - massArr[GetByteArrayIndex(pos, chunkSize)]) / 6;
-                        if (Flow > MinFlow) { Flow *= 0.5f; }
-                        Flow = Mathf.Clamp(Flow, 0, remaining_mass);
-
-                        newMassArr[GetByteArrayIndex(basePos, chunkSize)] -= Flow;
-                        newMassArr[GetByteArrayIndex(pos, chunkSize)] += Flow;
-
-                        remaining_mass -= Flow;
-                    }
-                    //-------------------------------------------------------
-                    if (remaining_mass <= 0) continue;
-
-                    pos.x = x;
-                    pos.y = y;
-                    pos.z = z + 1;
-                    //Forward
-                    if (chunkData.GetByteValue(GetByteArrayIndex(pos, chunkSize)) != 1 && z + 1 != chunkSize.z - 1)
-                    {
-                        //Equalize the amount of water in this block and it's neighbour
-                        Flow = (massArr[GetByteArrayIndex(basePos, chunkSize)] - massArr[GetByteArrayIndex(pos, chunkSize)]) / 6;
-                        if (Flow > MinFlow) { Flow *= 0.5f; }
-                        Flow = Mathf.Clamp(Flow, 0, remaining_mass);
-
-                        newMassArr[GetByteArrayIndex(basePos, chunkSize)] -= Flow;
-                        newMassArr[GetByteArrayIndex(pos, chunkSize)] += Flow;
-
-                        remaining_mass -= Flow;
-                    }
-
-                    //-------------------------------------------------------
-                    if (remaining_mass <= 0) continue;
-
-                    pos.x = x + 1;
-                    pos.y = y;
-                    pos.z = z;
-                    //Right
-                    if (chunkData.GetByteValue(GetByteArrayIndex(pos, chunkSize)) != 1 && x + 1 != chunkSize.x - 1)
-                    {
-                        //Equalize the amount of water in this block and it's neighbour
-                        Flow = (massArr[GetByteArrayIndex(basePos, chunkSize)] - massArr[GetByteArrayIndex(pos, chunkSize)]) / 6;
-                        if (Flow > MinFlow) { Flow *= 0.5f; }
-                        Flow = Mathf.Clamp(Flow, 0, remaining_mass);
-
-                        newMassArr[GetByteArrayIndex(basePos, chunkSize)] -= Flow;
-                        newMassArr[GetByteArrayIndex(pos, chunkSize)] += Flow;
-                        remaining_mass -= Flow;
-                    }
-
-                    //-------------------------------------------------------
-                    if (remaining_mass <= 0) continue;
-
-                    pos.x = x;
-                    pos.y = y;
-                    pos.z = z - 1;
-                    //Backward
-                    if (chunkData.GetByteValue(GetByteArrayIndex(pos, chunkSize)) != 1 && z - 1 != 0)
-                    {
-                        //Equalize the amount of water in this block and it's neighbour
-                        Flow = (massArr[GetByteArrayIndex(basePos, chunkSize)] - massArr[GetByteArrayIndex(pos, chunkSize)]) / 6;
-                        if (Flow > MinFlow) { Flow *= 0.5f; }
-                        Flow = Mathf.Clamp(Flow, 0, remaining_mass);
-
-                        newMassArr[GetByteArrayIndex(basePos, chunkSize)] -= Flow;
-                        newMassArr[GetByteArrayIndex(pos, chunkSize)] += Flow;
-
-                        remaining_mass -= Flow;
-                    }
-
-                    //-------------------------------------------------------
-                    if (remaining_mass <= 0) continue;
-
-                    pos.x = x;
-                    pos.y = y + 1;
-                    pos.z = z;
-                    //Up. Only compressed water flows upwards.
-                    if (chunkData.GetByteValue(GetByteArrayIndex(pos, chunkSize)) != 1 && y + 1 != chunkSize.y - 1)
-                    {
-                        Flow = remaining_mass - get_stable_state_b(remaining_mass + massArr[GetByteArrayIndex(pos, chunkSize)]);
-                        if (Flow > MinFlow) { Flow *= 0.5f; }
-                        Flow = Mathf.Clamp(Flow, 0, Mathf.Min(MaxSpeed, remaining_mass));
-
-                        newMassArr[GetByteArrayIndex(basePos, chunkSize)] -= Flow;
-                        newMassArr[GetByteArrayIndex(pos, chunkSize)] += Flow;
-
-                        remaining_mass -= Flow;
-                    }
-                }
-
-            }
-        }*/
-
         foreach(KeyValuePair<Vector3Int, WaterCell> entry in waterToAdd)
         {
             waterCells.Add(entry.Key, entry.Value);
@@ -415,53 +276,6 @@ public class LiquidHandler : MonoBehaviour
         {
             entry.Value.mass = entry.Value.newMass;
         }
-        /*//Copy the new mass values to the mass array
-        for (int x = 1; x < chunkSize.x - 1; x++)
-        {
-            for (int y = 1; y < chunkSize.y - 1; y++)
-            {
-                for (int z = 1; z < chunkSize.z - 1; z++)
-                {
-                    Vector3 currentPos = new Vector3(x, y, z);
-                    massArr[GetByteArrayIndex(currentPos, chunkSize)] = newMassArr[GetByteArrayIndex(currentPos, chunkSize)];
-                }
-            }
-        }*/
-
-        /*for (int x = 1; x < chunkSize.x - 1; x++)
-        {
-            for (int y = 1; y < chunkSize.y - 1; y++)
-            {
-                for (int z = 1; z < chunkSize.z - 1; z++)
-                {
-                    Vector3 currentPos = new Vector3(x, y, z);
-
-                    //Skip ground blocks
-                    if (chunkData.byteArr[GetByteArrayIndex(currentPos, chunkSize)] == 1) continue;
-                    //Flag/unflag water blocks
-                    if (massArr[GetByteArrayIndex(currentPos, chunkSize)] > MinMass)
-                    {
-                        chunkData.byteArr[GetByteArrayIndex(currentPos, chunkSize)] = 2;
-                    }
-                    else
-                    {
-                        chunkData.byteArr[GetByteArrayIndex(currentPos, chunkSize)] = 0;
-                    }
-                }
-            }
-        }*/
-        /*
-        //Remove any water that has left the map
-        for (int x = 0; x < map_width + 2; x++)
-        {
-            mass[x][0] = 0;
-            mass[x][map_height + 1] = 0;
-        }
-        for (int y = 1; y < map_height + 1; y++)
-        {
-            mass[0][y] = 0;
-            mass[map_width + 1][y] = 0;
-        }*/
     }
     //Returns the amount of water that should be in the bottom cell.
     float get_stable_state_b(float total_mass)

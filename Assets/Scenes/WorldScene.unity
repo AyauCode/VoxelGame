@@ -573,7 +573,7 @@ Transform:
   m_GameObject: {fileID: 391295571}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -5656,6 +5656,7 @@ MonoBehaviour:
   chunkDimensions: {x: 16, y: 16, z: 16}
   seed: 1230
   scale: 16.39
+  caveScale: 0
   baseRoughness: 0.83
   roughness: 0.44
   persistence: 1.53
@@ -5663,6 +5664,7 @@ MonoBehaviour:
   recede: 1.1
   layers: 2
   cutoff: 0.5
+  caveCutoff: 0
   chunkQueueTime: 0.001
   chunksToRegenerate: []
 --- !u!4 &1295538511
@@ -6470,8 +6472,8 @@ MonoBehaviour:
   mouseSensitivity: 20
   jumpHeight: 2
   groundCheckRadius: 0.3
-  waterThrowForce: 1000
   waterThrowAmt: 10
+  waterThrowForce: 800
   waterBallPrefab: {fileID: 391295571}
   terrainLayer:
     serializedVersion: 2
