@@ -184,7 +184,7 @@ public class TerrainChunk : MonoBehaviour
                     {
                         continue;
                     }
-                    else if (chunkData.GetByteValue(GetByteArrayIndex(pos, chunkData.chunkSize)) == 0)
+                    else if (chunkData.GetByteValue(GetByteArrayIndex(pos, chunkData.chunkSize)) == 0 && (chunkData.savedData != null && chunkData.savedData.HasByte(intPos) && chunkData.savedData.GetByte(intPos) != 1))
                     {
                         continue;
                     }
@@ -346,7 +346,12 @@ public class TerrainChunk : MonoBehaviour
     /// <returns>A 3D layered noise value >= 0.0</returns>
     public static float LayeredNoise(Vector3 pos, NoiseSettings settings)
     {
-        float noiseVal = (settings.fastNoise.GetNoise(pos.x, pos.y, pos.z) + 1) / 2f;
+        float x, y, z;
+        x = pos.x;
+        y = pos.y;
+        z = pos.z;
+        settings.fastNoise.DomainWarp(ref x, ref y, ref z);
+        float noiseVal = (settings.fastNoise.GetNoise(x,y,z) + 1) / 2f;
         return  Mathf.Max(0,noiseVal - settings.recede) * settings.strength;
     }
     //Container class for storing the chunk information (used to pass data between threads)

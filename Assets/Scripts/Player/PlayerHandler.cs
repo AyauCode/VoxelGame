@@ -193,8 +193,11 @@ public class PlayerHandler : MonoBehaviour
             //Calculate a point slightly outside the block you want to place on
             //(since the ray hit will be on the outside of the block in order to place in the right we must move the hit point just a bit backwards)
             Vector3Int hitPos = Vector3Int.FloorToInt(hit.point - playerCamera.transform.forward * .01f);
-            //Place block at position
-            TerrainHandler.instance.PlaceBlock(hitPos);
+            if ((Vector3Int.FloorToInt(this.transform.position) - hitPos).sqrMagnitude >= 1)
+            {
+                //Place block at position
+                TerrainHandler.instance.PlaceBlock(hitPos);
+            }
         }
     }
     public void ThrowWater(float amt)

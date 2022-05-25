@@ -5656,17 +5656,17 @@ MonoBehaviour:
   chunkDimensions: {x: 16, y: 16, z: 16}
   chunkQueueTime: 0
   seed: 7676
-  frequency: 0.05
-  strength: 24.4
+  frequency: 0.03
+  strength: 15
   recede: 0
   cutoff: 1
-  fractalType: 1
+  fractalType: 0
   octaves: 2
   lacunarity: 1.04
   gain: 0.02
-  weightedStrength: 22.44
-  warpType: 0
-  domainWarpAmplitude: 0
+  weightedStrength: 0
+  warpType: 1
+  domainWarpAmplitude: 5
   displayChunkPos: {x: 0, y: -8, z: 0}
   displayChunkSize: {x: 32, y: 32, z: 32}
   chunksToRegenerate: []
