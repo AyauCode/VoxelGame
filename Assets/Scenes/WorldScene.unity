@@ -5654,21 +5654,21 @@ MonoBehaviour:
   viewer: {fileID: 35777906}
   viewDist: {x: 6, y: 4, z: 6}
   chunkDimensions: {x: 16, y: 16, z: 16}
-  chunkQueueTime: 0.001
-  seed: 1230
+  chunkQueueTime: 0
+  seed: 7676
   frequency: 0.05
-  strength: 10
+  strength: 24.4
   recede: 0
   cutoff: 1
-  fractalType: 2
+  fractalType: 1
   octaves: 2
-  lacunarity: 0.2
+  lacunarity: 1.04
   gain: 0.02
-  weightedStrength: 49.83
+  weightedStrength: 22.44
   warpType: 0
   domainWarpAmplitude: 0
   displayChunkPos: {x: 0, y: -8, z: 0}
-  displayChunkSize: {x: 16, y: 16, z: 16}
+  displayChunkSize: {x: 32, y: 32, z: 32}
   chunksToRegenerate: []
 --- !u!4 &1295538511
 Transform:

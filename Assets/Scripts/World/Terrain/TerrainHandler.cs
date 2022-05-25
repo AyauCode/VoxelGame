@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Threading;
 
 public class TerrainHandler : MonoBehaviour
 {
@@ -56,6 +57,7 @@ public class TerrainHandler : MonoBehaviour
 
     float realChunkQueueTime = 0;
     float countdown;
+
     public void Start()
     {
         instance = this;
@@ -69,19 +71,10 @@ public class TerrainHandler : MonoBehaviour
             DoChunkQueue();
         }
         realChunkQueueTime = chunkQueueTime;
-    }
-    Texture2D noiseTexture;
-    public void GenerateNoiseHeightmapTexture(int width, int height)
-    {
-        noiseTexture = new Texture2D(width, height);
-        noiseSettings = CreateNoiseSettings();
-        for(int i = 0; i < width; i++)
-        {
-            for(int j = 0; j < height; j++)
-            {
-
-            }
-        }
+        int worker;
+        int ioCompletion;
+        ThreadPool.GetMaxThreads(out worker, out ioCompletion);
+        Debug.Log("Worker: " + worker + " | ioCompletion: " + ioCompletion);
     }
     /// <summary>
     /// Get a loaded terrain chunk containing the 3D point
@@ -153,6 +146,7 @@ public class TerrainHandler : MonoBehaviour
 
             //Regenerate the chunk mesh
             //(passing in chunkCoord(an x,y,z index of the chunk), its world space position, the current noiseSettings, and its savedData)
+            
             tc.GenerateChunk(tc.chunkCoord, new Vector3(tc.chunkCoord.x * chunkDimensions.x, tc.chunkCoord.y * chunkDimensions.y, tc.chunkCoord.z * chunkDimensions.z), noiseSettings, savedData);
         }
     }

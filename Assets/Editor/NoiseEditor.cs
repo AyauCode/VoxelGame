@@ -35,10 +35,10 @@ public class NoiseEditor : Editor
 
             double startTime = (System.DateTime.UtcNow - epochStart).TotalMilliseconds;
 
-            TerrainChunk.GenerateByteArray(null, new DoWorkEventArgs(chunkData));
+            TerrainChunk.GenerateByteArray(chunkData);
             double byteTime = (System.DateTime.UtcNow - epochStart).TotalMilliseconds;
 
-            TerrainChunk.GenerateMesh(null, new DoWorkEventArgs(chunkData));
+            TerrainChunk.GenerateMesh(chunkData);
             double endTime = (System.DateTime.UtcNow - epochStart).TotalMilliseconds;
 
             Mesh chunkMesh = new Mesh();
