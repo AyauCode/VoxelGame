@@ -22,4 +22,6 @@ static class CustomMath
      * Custom array of all the directions to easily loop over
      */
     public static readonly Vector3[] directions = { Vector3.up, Vector3.down, Vector3.left, Vector3.right, Vector3.forward, Vector3.back };
+    public static readonly Vector3Int[] intDirections = { Vector3Int.up, Vector3Int.down, Vector3Int.left, Vector3Int.right, Vector3Int.forward, Vector3Int.back };
+    public static readonly int NUMDIRECTIONS = 6;
 }

@@ -168,6 +168,7 @@ public class TerrainChunk : MonoBehaviour
         ChunkData chunkData = (ChunkData)state;
 
         Vector3 pos = Vector3.zero;
+        Vector3Int intPos = Vector3Int.zero;
         //Loop over all local space positions
         for (int i = 0; i < chunkData.chunkSize.x; i++)
         {
@@ -176,9 +177,10 @@ public class TerrainChunk : MonoBehaviour
                 for (int j = 0; j < chunkData.chunkSize.y; j++)
                 {
                     pos.Set(i, j, k);
+                    intPos.Set(i, j, k);
 
                     //Check if saved block is actually an air block, if so continue to the next block
-                    if(chunkData.savedData != null && chunkData.savedData.HasByte(Vector3Int.FloorToInt(pos)) && chunkData.savedData.GetByte(Vector3Int.FloorToInt(pos)) == 0)
+                    if(chunkData.savedData != null && chunkData.savedData.HasByte(intPos) && chunkData.savedData.GetByte(intPos) == 0)
                     {
                         continue;
                     }
@@ -188,16 +190,17 @@ public class TerrainChunk : MonoBehaviour
                     }
 
                     //Loop over each direction
-                    foreach (Vector3 dir in CustomMath.directions)
+                    for (int dIndex = 0; dIndex < CustomMath.NUMDIRECTIONS; dIndex++)
                     {
+                        Vector3 dir = CustomMath.directions[dIndex];
                         //Get the block adjacent to the current block in the given direction
                         Vector3 surrounding = pos + dir;
                         //Get the calculate adjacent vector as an integer vector
-                        Vector3Int surroundingInt = Vector3Int.FloorToInt(surrounding);
+                        Vector3Int surroundingInt = intPos + CustomMath.intDirections[dIndex];
 
                         //If the chunk has a solid block at the current position continue into the if (as we will need to be the cube faces around it)
                         //OR If the chunk has saved data at this position and it is a solid block continue into this if
-                        if(chunkData.byteArr[GetByteArrayIndex(pos, chunkData.chunkSize)] == 1 || (chunkData.savedData != null && chunkData.savedData.HasByte(Vector3Int.FloorToInt(pos)) && chunkData.savedData.GetByte(Vector3Int.FloorToInt(pos)) == 1))
+                        if(chunkData.byteArr[GetByteArrayIndex(pos, chunkData.chunkSize)] == 1 || (chunkData.savedData != null && chunkData.savedData.HasByte(intPos) && chunkData.savedData.GetByte(intPos) == 1))
                         {
                             //If the calculated adjacent block is inside the bounds of this chunk continue into this if
                             if (surrounding.x < chunkData.chunkSize.x && surrounding.x >= 0 && surrounding.y < chunkData.chunkSize.y && surrounding.y >= 0 && surrounding.z < chunkData.chunkSize.z && surrounding.z >= 0)
