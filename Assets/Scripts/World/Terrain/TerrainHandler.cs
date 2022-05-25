@@ -25,27 +25,35 @@ public class TerrainHandler : MonoBehaviour
      * Chunk generation queue (used to slow down speed of chunk loading for performance reasons)
      */
     Queue<TerrainChunk> chunkQueue = new Queue<TerrainChunk>();
-
-    /*
-     * All values set in editor will be passed into the noise settings struct
-     */
-    public int seed;
-    public float scale;
-    public float caveScale;
-    public float baseRoughness;
-    public float roughness;
-    public float persistence;
-    public float strength;
-    public float recede;
-    public int layers;
-    public float cutoff;
-    public float caveCutoff;
-    NoiseSettings noiseSettings;
-
     /*
      * Time between dequeues from the chunk generation queue
      */
     public float chunkQueueTime = 0.25f;
+
+    /*
+     * All values set in editor will be passed into the noise settings struct
+     */
+    [Header("NOISE SETTINGS")]
+    public int seed;
+    public float frequency;
+    public float strength;
+    public float recede;
+    public float cutoff;
+    public FastNoiseLite.FractalType fractalType;
+    public int octaves;
+    public float lacunarity;
+    public float gain;
+    public float weightedStrength;
+    public FastNoiseLite.DomainWarpType warpType;
+    public float domainWarpAmplitude;
+
+    NoiseSettings noiseSettings;
+    FastNoiseLite noise;
+
+    [Header("EDITOR VARIABLES")]
+    public Vector3 displayChunkPos;
+    public Vector3Int displayChunkSize;
+
     float realChunkQueueTime = 0;
     float countdown;
     public void Start()
@@ -61,6 +69,19 @@ public class TerrainHandler : MonoBehaviour
             DoChunkQueue();
         }
         realChunkQueueTime = chunkQueueTime;
+    }
+    Texture2D noiseTexture;
+    public void GenerateNoiseHeightmapTexture(int width, int height)
+    {
+        noiseTexture = new Texture2D(width, height);
+        noiseSettings = CreateNoiseSettings();
+        for(int i = 0; i < width; i++)
+        {
+            for(int j = 0; j < height; j++)
+            {
+
+            }
+        }
     }
     /// <summary>
     /// Get a loaded terrain chunk containing the 3D point
@@ -205,7 +226,19 @@ public class TerrainHandler : MonoBehaviour
     /// <returns>A NoiseSettings struct with the values from the TerrainHandler instance</returns>
     public NoiseSettings CreateNoiseSettings()
     {
-        return new NoiseSettings(seed, scale, caveScale, baseRoughness, roughness, persistence, strength, recede, layers, cutoff, caveCutoff);
+        noise = new FastNoiseLite(seed);
+        noise.SetFrequency(frequency);
+
+        noise.SetFractalType(fractalType);
+        noise.SetFractalOctaves(octaves);
+        noise.SetFractalLacunarity(lacunarity);
+        noise.SetFractalGain(gain);
+        noise.SetFractalWeightedStrength(weightedStrength);
+
+        noise.SetDomainWarpType(warpType);
+        noise.SetDomainWarpAmp(domainWarpAmplitude);
+
+        return new NoiseSettings(noise, cutoff, strength, recede);
     }
     private void Update()
     {
@@ -308,7 +341,6 @@ public class TerrainHandler : MonoBehaviour
                 }
             }
         }
-        
         //Loop over all chunks still in remove list and remove them (i.e. they are out of the view distance)
         foreach (Vector3Int key in removeKeys)
         {

@@ -174,22 +174,24 @@ public class TerrainChunk : MonoBehaviour
         ChunkData chunkData = (ChunkData)e.Argument;
 
         //Loop over all local positions (in the x,y, and z directions)
+        Vector3 pos = Vector3.zero;
         for (int i = 0; i < chunkData.chunkSize.x; i++)
         {
             for(int j = 0; j < chunkData.chunkSize.y; j++)
             {
                 for (int k = 0; k < chunkData.chunkSize.z; k++)
                 {
-                    Vector3 pos = new Vector3(i, j, k);
+                    pos.Set(i, j, k);
                     //Convert the 3D local space coordinate to an index to access a 1D array of byte values
                     int index = GetByteArrayIndex(pos, chunkData.chunkSize);
                     //Generate the byte value at the world space position of the block, with current noise settings
                     //Set the byte value at the index, to the generated value
-                    chunkData.SetByteValue(index, GenerateBlock(chunkData.chunkWorldPos + pos, chunkData.settings));
+                    byte val = GenerateBlock(chunkData.chunkWorldPos + pos, chunkData.settings);
+                    chunkData.SetByteValue(index, val);
 
                     //Check if CancelASync has been called on this thread.
                     //If it has stop execution to kill the thread and save resources
-                    if (((BackgroundWorker)sender).CancellationPending)
+                    if (sender != null && ((BackgroundWorker)sender).CancellationPending)
                     {
                         return;
                     }
@@ -202,11 +204,12 @@ public class TerrainChunk : MonoBehaviour
     /// </summary>
     /// <param name="sender">The BackgroundWorker invoking this method</param>
     /// <param name="e">Parameter to share ChunkData object information between threads</param>
-    static void GenerateMesh(object sender, DoWorkEventArgs e)
+    public static void GenerateMesh(object sender, DoWorkEventArgs e)
     {
         //Get the chunk data from the worker argument passed on the method call.
         ChunkData chunkData = (ChunkData)e.Argument;
 
+        Vector3 pos = Vector3.zero;
         //Loop over all local space positions
         for (int i = 0; i < chunkData.chunkSize.x; i++)
         {
@@ -214,9 +217,20 @@ public class TerrainChunk : MonoBehaviour
             {
                 for (int j = 0; j < chunkData.chunkSize.y; j++)
                 {
-                    Vector3 pos = new Vector3(i, j, k);
+                    pos.Set(i, j, k);
+
+                    //Check if saved block is actually an air block, if so continue to the next block
+                    if(chunkData.savedData != null && chunkData.savedData.HasByte(Vector3Int.FloorToInt(pos)) && chunkData.savedData.GetByte(Vector3Int.FloorToInt(pos)) == 0)
+                    {
+                        continue;
+                    }
+                    else if (chunkData.GetByteValue(GetByteArrayIndex(pos, chunkData.chunkSize)) == 0)
+                    {
+                        continue;
+                    }
+
                     //Loop over each direction
-                    foreach(Vector3 dir in CustomMath.directions)
+                    foreach (Vector3 dir in CustomMath.directions)
                     {
                         //Get the block adjacent to the current block in the given direction
                         Vector3 surrounding = pos + dir;
@@ -227,12 +241,6 @@ public class TerrainChunk : MonoBehaviour
                         //OR If the chunk has saved data at this position and it is a solid block continue into this if
                         if(chunkData.byteArr[GetByteArrayIndex(pos, chunkData.chunkSize)] == 1 || (chunkData.savedData != null && chunkData.savedData.HasByte(Vector3Int.FloorToInt(pos)) && chunkData.savedData.GetByte(Vector3Int.FloorToInt(pos)) == 1))
                         {
-                            //Because of short circuit we could have entered this if and not checked if the block was actually destroyed by a player
-                            //Check if current block is actually an air block, if so continue to the next block
-                            if(chunkData.savedData != null && chunkData.savedData.HasByte(Vector3Int.FloorToInt(pos)) && chunkData.savedData.GetByte(Vector3Int.FloorToInt(pos)) == 0)
-                            {
-                                continue;
-                            }
                             //If the calculated adjacent block is inside the bounds of this chunk continue into this if
                             if (surrounding.x < chunkData.chunkSize.x && surrounding.x >= 0 && surrounding.y < chunkData.chunkSize.y && surrounding.y >= 0 && surrounding.z < chunkData.chunkSize.z && surrounding.z >= 0)
                             {
@@ -267,7 +275,7 @@ public class TerrainChunk : MonoBehaviour
 
                         //Check if CancelASync has been called on this thread.
                         //If it has stop execution to kill the thread and save resources
-                        if (((BackgroundWorker)sender).CancellationPending)
+                        if (sender != null && ((BackgroundWorker)sender).CancellationPending)
                         {
                             return;
                         }
@@ -352,31 +360,14 @@ public class TerrainChunk : MonoBehaviour
         byte output = 0;
         //Get layered noise value at the world position with current settings, subtracting block pos.y
         //NOTE: subtracting pos.y is done to create a flat plane near y = 0
-        float val = LayeredNoise(pos,settings) - pos.y;
+        float val = -pos.y + LayeredNoise(pos,settings);
 
         //If the value is greater than the air block cutoff it is a solid block (set the output to 1)
         if(val > settings.cutoff)
         {
             output = 1;
         }
-
-        //Duplicate the noise settings (since structs are not references) and change the scale value used to the cave scale stored in settings
-        NoiseSettings caveSettings = settings;
-        caveSettings.scale = caveSettings.caveScale;
-
-        //Get layered noise value at the world position with noise settings to generate caves
-        //NOTE: Absolute value of noise is taken to achieve a cave like appearance
-        //(large negative noise values will create solid blocks instead of air)
-        val = Mathf.Abs(LayeredNoise(pos,caveSettings));
-
-        //We want to layer the cave noise over the current terrain noise (so the caves can cut through the mountains/valleys that have already generated)
-        //So if the output has been set to a solid block and the the generated cave noise value is less than a given caveCutoff replace that block with air
-        //NOTE: Increasing the caveCutoff value will create wider cave tunnels, along with the valleys that are already generated by the first layered noise step, so keep this cave cutoff value low
-        //(If output already = 0 then there is already an air block here and no point in writing a 0 byte again)
-        if(output == 1 && val < caveSettings.caveCutoff)
-        {
-            output = 0;
-        }
+        
         return output;
     }
 
@@ -393,28 +384,6 @@ public class TerrainChunk : MonoBehaviour
         return (int)pos.x + chunkSize.x * ((int)pos.y + chunkSize.y * (int)pos.z);
     }
     /// <summary>
-    /// Generate a 3D Perlin Noise value at the given world space position
-    /// </summary>
-    /// <param name="x">A world space x coordinate</param>
-    /// <param name="y">A world space y coordinate</param>
-    /// <param name="z">A world space z coordinate</param>
-    /// <returns>A 3D Perlin Noise value betweeen 0.0 and 1.0</returns>
-    public static float PerlinNoise3D(float x, float y, float z)
-    {
-        //This is quick hack to generate semi-accurate 3D noise using only 2D noise values
-        //Fairly expensive as 6 calls to perlin noise need to be called
-        //I wanted to keep the code fairly contained within the bounds of C#/Unity without importing extra packages/libraries
-        //The code for this faux 3D noise can be found here: https://www.youtube.com/watch?v=Aga0TBJkchM
-        float xy = Mathf.PerlinNoise(x, y);
-        float xz = Mathf.PerlinNoise(x, z);
-        float yz = Mathf.PerlinNoise(y, z);
-        float yx = Mathf.PerlinNoise(y, x);
-        float zx = Mathf.PerlinNoise(z, x);
-        float zy = Mathf.PerlinNoise(z, y);
-
-        return (xy + xz + yz + yx + zx + zy) / 6;
-    }
-    /// <summary>
     /// Generate a 3D layered noise value at the given world space position with the given settings.
     /// NOTE: Upper bound on noise value returned varies with noise settings.
     /// </summary>
@@ -423,27 +392,12 @@ public class TerrainChunk : MonoBehaviour
     /// <returns>A 3D layered noise value >= 0.0</returns>
     public static float LayeredNoise(Vector3 pos, NoiseSettings settings)
     {
-        /*
-         * Code obtained from: https://www.youtube.com/watch?v=MRNFcywkUSA
-         */
-        float noiseValue = 0;
-        float frequency = settings.baseRoughness;
-        float amplitude = 1;
-        for(int i = 0; i < settings.layers; i++)
-        {
-            Vector3 samplePos = new Vector3(pos.x/settings.scale * frequency + settings.seed, pos.y/settings.scale * frequency + settings.seed, pos.z/settings.scale * frequency + settings.seed);
-            float v = PerlinNoise3D(samplePos.x, samplePos.y, samplePos.z);
-            noiseValue += v * amplitude;
-            frequency *= settings.roughness;
-            amplitude *= settings.persistence;
-        }
-
-        noiseValue = Mathf.Max(0, noiseValue - settings.recede);
-        return noiseValue * settings.strength;
+        float noiseVal = (settings.fastNoise.GetNoise(pos.x, pos.y, pos.z) + 1) / 2f;
+        return  Mathf.Max(0,noiseVal - settings.recede) * settings.strength;
     }
     //Container class for storing the chunk information (used to pass data between threads)
     //(Mesh vertices, triangles, arrays, world position, noise settings, saved data)
-    class ChunkData
+    public class ChunkData
     {
         //List of vertex positions for the chunk mesh
         public List<Vector3> vertices = new List<Vector3>();
