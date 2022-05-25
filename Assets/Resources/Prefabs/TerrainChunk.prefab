@@ -111,6 +111,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8bfe7a195fda95b448c502acc697bf70, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  chunkCoord: {x: 0, y: 0, z: 0}
   chunkWorldPos: {x: 0, y: 0, z: 0}
   chunkSize: {x: 16, y: 16, z: 16}
   generated: 0

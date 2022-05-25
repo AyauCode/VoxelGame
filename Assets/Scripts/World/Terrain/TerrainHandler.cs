@@ -71,10 +71,6 @@ public class TerrainHandler : MonoBehaviour
             DoChunkQueue();
         }
         realChunkQueueTime = chunkQueueTime;
-        int worker;
-        int ioCompletion;
-        ThreadPool.GetMaxThreads(out worker, out ioCompletion);
-        Debug.Log("Worker: " + worker + " | ioCompletion: " + ioCompletion);
     }
     /// <summary>
     /// Get a loaded terrain chunk containing the 3D point
@@ -146,7 +142,6 @@ public class TerrainHandler : MonoBehaviour
 
             //Regenerate the chunk mesh
             //(passing in chunkCoord(an x,y,z index of the chunk), its world space position, the current noiseSettings, and its savedData)
-            
             tc.GenerateChunk(tc.chunkCoord, new Vector3(tc.chunkCoord.x * chunkDimensions.x, tc.chunkCoord.y * chunkDimensions.y, tc.chunkCoord.z * chunkDimensions.z), noiseSettings, savedData);
         }
     }

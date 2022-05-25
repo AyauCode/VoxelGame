@@ -124,7 +124,7 @@ public class LiquidHandler : MonoBehaviour
         float Flow = 0;
         float remaining_mass;
 
-        Vector3 pos = Vector3.zero, nextPos = Vector3.zero;
+        Vector3Int pos = Vector3Int.zero, nextPos = Vector3Int.zero;
         //Calculate and apply flow for each block
         foreach (KeyValuePair<Vector3Int, WaterCell> entry in waterCells)
         {
