@@ -94,7 +94,7 @@ public class PlayerHandler : MonoBehaviour
             rotX = Mathf.Clamp(rotX, -90f, 90f);
 
             //Rotate the camera only along its x axis (the player model should not move up and down as this would look odd in game)
-            playerCamera.transform.localRotation = Quaternion.Euler(new Vector3(rotX, 0, 0));
+            playerCamera.transform.localRotation = Quaternion.Euler(new Vector3(rotX, -8.5f, 0));
             //Rotate the player object around its current up vector by the delta X of the mouse
             playerObject.transform.Rotate(Vector3.up * mouseX);
 
@@ -193,7 +193,8 @@ public class PlayerHandler : MonoBehaviour
             //Calculate a point slightly outside the block you want to place on
             //(since the ray hit will be on the outside of the block in order to place in the right we must move the hit point just a bit backwards)
             Vector3Int hitPos = Vector3Int.FloorToInt(hit.point - playerCamera.transform.forward * .01f);
-            if ((Vector3Int.FloorToInt(this.transform.position) - hitPos).sqrMagnitude >= 1)
+            
+            if (!gameObject.GetComponent<BoxCollider>().bounds.Contains(hitPos + new Vector3(0.5f,0.5f,0.5f)))
             {
                 //Place block at position
                 TerrainHandler.instance.PlaceBlock(hitPos);
