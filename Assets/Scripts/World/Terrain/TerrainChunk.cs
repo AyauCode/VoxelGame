@@ -314,13 +314,23 @@ public class TerrainChunk : MonoBehaviour
         byte output = 0;
         //Get layered noise value at the world position with current settings, subtracting block pos.y
         //NOTE: subtracting pos.y is done to create a flat plane near y = 0
-        float val = -pos.y + LayeredNoise(pos,settings);
+        float val = -pos.y + LayeredNoise(pos,settings, settings.fastNoise);
 
         //If the value is greater than the air block cutoff it is a solid block (set the output to 1)
         if(val > settings.cutoff)
         {
             output = 1;
         }
+        
+        /*NoiseSettings caveSettings = settings;
+        caveSettings.cutoff = 25f;
+        caveSettings.strength = 30f;
+        
+        val = LayeredNoise(pos, caveSettings, caveSettings.caveNoise);
+        if(output == 1 && val > caveSettings.cutoff)
+        {
+            output = 0;
+        }*/
         
         return output;
     }
@@ -344,14 +354,14 @@ public class TerrainChunk : MonoBehaviour
     /// <param name="pos">A 3D position in world space</param>
     /// <param name="settings">A NoiseSettings struct containing the settings for the layered noise</param>
     /// <returns>A 3D layered noise value >= 0.0</returns>
-    public static float LayeredNoise(Vector3 pos, NoiseSettings settings)
+    public static float LayeredNoise(Vector3 pos, NoiseSettings settings, FastNoiseLite fastNoise)
     {
         float x, y, z;
         x = pos.x;
         y = pos.y;
         z = pos.z;
         settings.fastNoise.DomainWarp(ref x, ref y, ref z);
-        float noiseVal = (settings.fastNoise.GetNoise(x,y,z) + 1) / 2f;
+        float noiseVal = (fastNoise.GetNoise(x,y,z) + 1) / 2f;
         return  Mathf.Max(0,noiseVal - settings.recede) * settings.strength;
     }
     //Container class for storing the chunk information (used to pass data between threads)

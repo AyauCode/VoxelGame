@@ -227,7 +227,17 @@ public class TerrainHandler : MonoBehaviour
         noise.SetDomainWarpType(warpType);
         noise.SetDomainWarpAmp(domainWarpAmplitude);
 
-        return new NoiseSettings(noise, cutoff, strength, recede);
+        FastNoiseLite caveNoise = new FastNoiseLite(seed);
+        caveNoise.SetFractalType(FastNoiseLite.FractalType.Ridged);
+        caveNoise.SetFrequency(0.005f);
+        caveNoise.SetFractalOctaves(octaves);
+        caveNoise.SetFractalLacunarity(lacunarity);
+        caveNoise.SetFractalGain(gain);
+        caveNoise.SetFractalWeightedStrength(weightedStrength);
+        noise.SetDomainWarpType(warpType);
+        noise.SetDomainWarpAmp(domainWarpAmplitude);
+
+        return new NoiseSettings(noise, caveNoise, cutoff, strength, recede);
     }
     private void Update()
     {

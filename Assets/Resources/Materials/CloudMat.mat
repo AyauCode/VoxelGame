@@ -50,7 +50,7 @@ Material:
     - _CloudSoftness: 0.55
     - _FirstPassScale: 0.005
     - _GroundMultiplier: -107.99
-    - _MiddleYValue: 30
+    - _MiddleYValue: 70
     - _OffsetDistance: 0.1
     - _QueueControl: 0
     - _QueueOffset: 0

@@ -94,7 +94,7 @@ public class PlayerHandler : MonoBehaviour
             rotX = Mathf.Clamp(rotX, -90f, 90f);
 
             //Rotate the camera only along its x axis (the player model should not move up and down as this would look odd in game)
-            playerCamera.transform.localRotation = Quaternion.Euler(new Vector3(rotX, -8.5f, 0));
+            //playerCamera.transform.localRotation = Quaternion.Euler(new Vector3(rotX, -8.5f, 0));
             //Rotate the player object around its current up vector by the delta X of the mouse
             playerObject.transform.Rotate(Vector3.up * mouseX);
 
