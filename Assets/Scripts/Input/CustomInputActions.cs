@@ -98,6 +98,15 @@ public partial class @CustomInputActions : IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""RPress"",
+                    ""type"": ""Button"",
+                    ""id"": ""36bebd40-9427-4216-bb29-4aa82f7f870c"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": true
                 }
             ],
             ""bindings"": [
@@ -254,6 +263,17 @@ public partial class @CustomInputActions : IInputActionCollection2, IDisposable
                     ""action"": ""MouseMiddleClick"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""2b464f6b-e057-411f-8e0f-f628169e0ad7"",
+                    ""path"": ""<Keyboard>/r"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""RPress"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -270,6 +290,7 @@ public partial class @CustomInputActions : IInputActionCollection2, IDisposable
         m_User_MouseLeftClick = m_User.FindAction("MouseLeftClick", throwIfNotFound: true);
         m_User_MouseRightClick = m_User.FindAction("MouseRightClick", throwIfNotFound: true);
         m_User_MouseMiddleClick = m_User.FindAction("MouseMiddleClick", throwIfNotFound: true);
+        m_User_RPress = m_User.FindAction("RPress", throwIfNotFound: true);
     }
 
     public void Dispose()
@@ -337,6 +358,7 @@ public partial class @CustomInputActions : IInputActionCollection2, IDisposable
     private readonly InputAction m_User_MouseLeftClick;
     private readonly InputAction m_User_MouseRightClick;
     private readonly InputAction m_User_MouseMiddleClick;
+    private readonly InputAction m_User_RPress;
     public struct UserActions
     {
         private @CustomInputActions m_Wrapper;
@@ -349,6 +371,7 @@ public partial class @CustomInputActions : IInputActionCollection2, IDisposable
         public InputAction @MouseLeftClick => m_Wrapper.m_User_MouseLeftClick;
         public InputAction @MouseRightClick => m_Wrapper.m_User_MouseRightClick;
         public InputAction @MouseMiddleClick => m_Wrapper.m_User_MouseMiddleClick;
+        public InputAction @RPress => m_Wrapper.m_User_RPress;
         public InputActionMap Get() { return m_Wrapper.m_User; }
         public void Enable() { Get().Enable(); }
         public void Disable() { Get().Disable(); }
@@ -382,6 +405,9 @@ public partial class @CustomInputActions : IInputActionCollection2, IDisposable
                 @MouseMiddleClick.started -= m_Wrapper.m_UserActionsCallbackInterface.OnMouseMiddleClick;
                 @MouseMiddleClick.performed -= m_Wrapper.m_UserActionsCallbackInterface.OnMouseMiddleClick;
                 @MouseMiddleClick.canceled -= m_Wrapper.m_UserActionsCallbackInterface.OnMouseMiddleClick;
+                @RPress.started -= m_Wrapper.m_UserActionsCallbackInterface.OnRPress;
+                @RPress.performed -= m_Wrapper.m_UserActionsCallbackInterface.OnRPress;
+                @RPress.canceled -= m_Wrapper.m_UserActionsCallbackInterface.OnRPress;
             }
             m_Wrapper.m_UserActionsCallbackInterface = instance;
             if (instance != null)
@@ -410,6 +436,9 @@ public partial class @CustomInputActions : IInputActionCollection2, IDisposable
                 @MouseMiddleClick.started += instance.OnMouseMiddleClick;
                 @MouseMiddleClick.performed += instance.OnMouseMiddleClick;
                 @MouseMiddleClick.canceled += instance.OnMouseMiddleClick;
+                @RPress.started += instance.OnRPress;
+                @RPress.performed += instance.OnRPress;
+                @RPress.canceled += instance.OnRPress;
             }
         }
     }
@@ -424,5 +453,6 @@ public partial class @CustomInputActions : IInputActionCollection2, IDisposable
         void OnMouseLeftClick(InputAction.CallbackContext context);
         void OnMouseRightClick(InputAction.CallbackContext context);
         void OnMouseMiddleClick(InputAction.CallbackContext context);
+        void OnRPress(InputAction.CallbackContext context);
     }
 }

@@ -58,15 +58,19 @@ public class TerrainHandler : MonoBehaviour
     float realChunkQueueTime = 0;
     float countdown;
 
-    public void Start()
+    public void Awake()
     {
         instance = this;
+    }
+    public void Init(Transform player)
+    {
+        this.viewer = player;
         //Construct noise setitngs struct
         noiseSettings = CreateNoiseSettings();
         //Run the chunk generaiton loop once on startup to make sure chunks are loaded in when the player spawns
         UpdateTerrain();
         //Spawn all the chunks that were added to the generation queue (no delay, again to make sure some chunks are loaded when the player spawns)
-        while(chunkQueue.Count > 0)
+        while (chunkQueue.Count > 0)
         {
             DoChunkQueue();
         }
