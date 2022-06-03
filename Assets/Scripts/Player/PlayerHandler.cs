@@ -231,10 +231,15 @@ public class PlayerHandler : NetworkBehaviour
     }
     public void ThrowWater(float amt)
     {
+        SpawnWaterCommand(this.transform.position, this.transform.forward, waterThrowForce, amt);
+    }
+    [Command]
+    public void SpawnWaterCommand(Vector3 pos, Vector3 forward, float waterThrowForce, float amt)
+    {
         GameObject waterBall = Instantiate(waterBallPrefab);
-        waterBall.SetActive(true);
-        waterBall.transform.position = playerObject.transform.position + playerObject.transform.forward;
+        waterBall.transform.position = pos + forward;
         waterBall.GetComponent<WaterBall>().amt = amt;
-        waterBall.GetComponent<Rigidbody>().AddForce(playerObject.transform.forward * waterThrowForce);
+        waterBall.GetComponent<Rigidbody>().AddForce(forward * waterThrowForce);
+        NetworkServer.Spawn(waterBall);
     }
 }

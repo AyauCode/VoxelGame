@@ -35,20 +35,8 @@ public class TerrainHandler : MonoBehaviour
      * All values set in editor will be passed into the noise settings struct
      */
     [Header("NOISE SETTINGS")]
-    public int seed;
-    public float frequency;
-    public float strength;
-    public float recede;
-    public float cutoff;
-    public FastNoiseLite.FractalType fractalType;
-    public int octaves;
-    public float lacunarity;
-    public float gain;
-    public float weightedStrength;
-    public FastNoiseLite.DomainWarpType warpType;
-    public float domainWarpAmplitude;
-
-    NoiseSettings noiseSettings;
+    NoiseProfile[] noiseProfiles;
+    float freq;
     FastNoiseLite noise;
 
     [Header("EDITOR VARIABLES")]
@@ -65,8 +53,6 @@ public class TerrainHandler : MonoBehaviour
     public void Init(Transform player)
     {
         this.viewer = player;
-        //Construct noise setitngs struct
-        noiseSettings = CreateNoiseSettings();
         //Run the chunk generaiton loop once on startup to make sure chunks are loaded in when the player spawns
         UpdateTerrain();
         //Spawn all the chunks that were added to the generation queue (no delay, again to make sure some chunks are loaded when the player spawns)
@@ -146,7 +132,7 @@ public class TerrainHandler : MonoBehaviour
 
             //Regenerate the chunk mesh
             //(passing in chunkCoord(an x,y,z index of the chunk), its world space position, the current noiseSettings, and its savedData)
-            tc.GenerateChunk(tc.chunkCoord, new Vector3(tc.chunkCoord.x * chunkDimensions.x, tc.chunkCoord.y * chunkDimensions.y, tc.chunkCoord.z * chunkDimensions.z), noiseSettings, savedData);
+            tc.GenerateChunk(tc.chunkCoord, new Vector3(tc.chunkCoord.x * chunkDimensions.x, tc.chunkCoord.y * chunkDimensions.y, tc.chunkCoord.z * chunkDimensions.z), savedData);
         }
     }
     /// <summary>
@@ -197,7 +183,7 @@ public class TerrainHandler : MonoBehaviour
 
             //Regenerate the chunk mesh
             //(passing in chunkCoord(an x,y,z index of the chunk), its world space position, the current noiseSettings, and its savedData)
-            tc.GenerateChunk(tc.chunkCoord, new Vector3(tc.chunkCoord.x * chunkDimensions.x, tc.chunkCoord.y * chunkDimensions.y, tc.chunkCoord.z * chunkDimensions.z), noiseSettings, savedData);
+            tc.GenerateChunk(tc.chunkCoord, new Vector3(tc.chunkCoord.x * chunkDimensions.x, tc.chunkCoord.y * chunkDimensions.y, tc.chunkCoord.z * chunkDimensions.z), savedData);
         }
     }
     /// <summary>
@@ -219,29 +205,10 @@ public class TerrainHandler : MonoBehaviour
     /// <returns>A NoiseSettings struct with the values from the TerrainHandler instance</returns>
     public NoiseSettings CreateNoiseSettings()
     {
-        noise = new FastNoiseLite(seed);
-        noise.SetFrequency(frequency);
+        noise = new FastNoiseLite(1);
 
-        noise.SetFractalType(fractalType);
-        noise.SetFractalOctaves(octaves);
-        noise.SetFractalLacunarity(lacunarity);
-        noise.SetFractalGain(gain);
-        noise.SetFractalWeightedStrength(weightedStrength);
 
-        noise.SetDomainWarpType(warpType);
-        noise.SetDomainWarpAmp(domainWarpAmplitude);
-
-        FastNoiseLite caveNoise = new FastNoiseLite(seed);
-        caveNoise.SetFractalType(FastNoiseLite.FractalType.Ridged);
-        caveNoise.SetFrequency(0.005f);
-        caveNoise.SetFractalOctaves(octaves);
-        caveNoise.SetFractalLacunarity(lacunarity);
-        caveNoise.SetFractalGain(gain);
-        caveNoise.SetFractalWeightedStrength(weightedStrength);
-        noise.SetDomainWarpType(warpType);
-        noise.SetDomainWarpAmp(domainWarpAmplitude);
-
-        return new NoiseSettings(noise, caveNoise, cutoff, strength, recede);
+        return new NoiseSettings(noise);
     }
     private void Update()
     {
@@ -378,11 +345,19 @@ public class TerrainHandler : MonoBehaviour
                 {
                     //Generate the chunk mesh
                     //(passing in chunkCoord(an x,y,z index of the chunk), its world space position, the current noiseSettings, and its savedData if it exists)
-                    tc.GenerateChunk(tc.chunkCoord, new Vector3(tc.chunkCoord.x * chunkDimensions.x, tc.chunkCoord.y * chunkDimensions.y, tc.chunkCoord.z * chunkDimensions.z), noiseSettings, GetSavedData(tc.chunkCoord));
+                    tc.GenerateChunk(tc.chunkCoord, new Vector3(tc.chunkCoord.x * chunkDimensions.x, tc.chunkCoord.y * chunkDimensions.y, tc.chunkCoord.z * chunkDimensions.z), GetSavedData(tc.chunkCoord));
                 }
             }
             //Reset the timer
             countdown = realChunkQueueTime;
         }
+    }
+}
+public struct NoiseSettings
+{
+    FastNoiseLite fastNoise;
+    public NoiseSettings(FastNoiseLite noise)
+    {
+        this.fastNoise = noise;
     }
 }

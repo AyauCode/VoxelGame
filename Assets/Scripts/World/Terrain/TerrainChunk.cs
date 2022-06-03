@@ -113,12 +113,12 @@ public class TerrainChunk : MonoBehaviour
     /// <param name="chunkWorldPos">A 3D chunk position in world space</param>
     /// <param name="settings">A NoiseSettings struct containing the values to use for the octave noise</param>
     /// <param name="savedData">The saved data for this chunk</param>
-    public void GenerateChunk(Vector3Int chunkCoord, Vector3 chunkWorldPos, NoiseSettings settings, SavedChunkData savedData)
+    public void GenerateChunk(Vector3Int chunkCoord, Vector3 chunkWorldPos, SavedChunkData savedData)
     {
         ClearChunk();
         this.chunkCoord = chunkCoord;
         this.chunkWorldPos = chunkWorldPos;
-        chunkData = new ChunkData(chunkWorldPos, chunkSize, settings, chunkSize.x * chunkSize.y * chunkSize.z, savedData);
+        chunkData = new ChunkData(chunkWorldPos, chunkSize, chunkSize.x * chunkSize.y * chunkSize.z, savedData);
         ThreadPool.QueueUserWorkItem(new WaitCallback(FullGenerate), chunkData);
     }
     public static void FullGenerate(object state)
@@ -151,7 +151,7 @@ public class TerrainChunk : MonoBehaviour
                     int index = GetByteArrayIndex(pos, chunkData.chunkSize);
                     //Generate the byte value at the world space position of the block, with current noise settings
                     //Set the byte value at the index, to the generated value
-                    byte val = GenerateBlock(chunkData.chunkWorldPos + pos, chunkData.settings);
+                    byte val = GenerateBlock(chunkData.chunkWorldPos + pos);
                     chunkData.SetByteValue(index, val);
                 }
             }
@@ -225,7 +225,7 @@ public class TerrainChunk : MonoBehaviour
                             //Else if the block is outside the current chunk bounds quickly generate the value the block would have in the next chunk
                             //Or if the chunk has saved data about the adjacent block outside the bounds and that block is air construct a face in its direction
                             //NOTE: the chunk saved data will contain information about blocks outside of the chunk bounds due to how saved information is added to the chunks
-                            else if(GenerateBlock(chunkData.chunkWorldPos + surrounding, chunkData.settings) == 0 || (chunkData.savedData != null && chunkData.savedData.HasByte(surroundingInt) && chunkData.savedData.GetByte(surroundingInt) == 0))
+                            else if(GenerateBlock(chunkData.chunkWorldPos + surrounding) == 0 || (chunkData.savedData != null && chunkData.savedData.HasByte(surroundingInt) && chunkData.savedData.GetByte(surroundingInt) == 0))
                             {
                                 //Array of directions for constructing the cube face with quad normal = dir
                                 Vector3[] wlDir = CustomMath.directionDictionary[dir];
@@ -309,32 +309,50 @@ public class TerrainChunk : MonoBehaviour
     /// <param name="pos">A 3D point in world space</param>
     /// <param name="settings">A NoiseSettings struct containing the settings for the octave noise</param>
     /// <returns>A byte value (0 for air, 1 for a solid block)</returns>
-    public static byte GenerateBlock(Vector3 pos, NoiseSettings settings)
+    public static byte GenerateBlock(Vector3 pos)
     {
         byte output = 0;
         //Get layered noise value at the world position with current settings, subtracting block pos.y
         //NOTE: subtracting pos.y is done to create a flat plane near y = 0
-        float val = -pos.y + LayeredNoise(pos,settings, settings.fastNoise);
-
+        //float val = -pos.y + LayeredNoise(pos, settings, settings.fastNoise);
+        float val = -pos.y + LayeredNoise(pos);
         //If the value is greater than the air block cutoff it is a solid block (set the output to 1)
-        if(val > settings.cutoff)
+        if(val > 70f || SuperEval3D(4f,100f,100f,100f,pos.x,pos.y, pos.z, 25f, 0f))
         {
             output = 1;
         }
         
-        /*NoiseSettings caveSettings = settings;
-        caveSettings.cutoff = 25f;
-        caveSettings.strength = 30f;
-        
-        val = LayeredNoise(pos, caveSettings, caveSettings.caveNoise);
-        if(output == 1 && val > caveSettings.cutoff)
-        {
-            output = 0;
-        }*/
-        
         return output;
     }
+    static bool SuperEval3D(float m, float n1, float n2, float n3, float x, float y, float z, float size, float error)
+    {
+        y -= 20f;
+        z -= 20f;
+        float pointR = Mathf.Sqrt(x * x + y * y + z * z);
+        float theta = Mathf.Atan2(y, x);
+        float phi = Mathf.Asin(z / (pointR));
 
+        float r1 = SuperEval2D(theta, 5,0.1f,1.7f,1.7f);
+        float r2 = SuperEval2D(phi, 1,0.3f,0.5f,0.5f);
+
+        float x1 = (r1 * Mathf.Cos(theta) * r2 * Mathf.Cos(phi) * size);
+        float y1 = (r1 * Mathf.Sin(theta) * r2 * Mathf.Cos(phi) * size);
+        float z1 = (r2 * Mathf.Sin(phi) * size);
+        float r = Mathf.Sqrt(x1 * x1 + y1 * y1 + z1 * z1);
+
+        return pointR < r;
+    }
+    static float SuperEval2D(float phi, float m, float n1, float n2, float n3, float a = 1, float b = 1)
+    {
+        float t1 = Mathf.Cos((m * phi) / 4f) / a;
+        float t2 = Mathf.Sin((m * phi) / 4f) / b;
+        float left = Mathf.Pow(Mathf.Abs(t1), n2);
+        float right = Mathf.Pow(Mathf.Abs(t2), n3);
+
+        float r = Mathf.Pow(left + right, -1 / n1);
+
+        return r;
+    }
     /// <summary>
     /// Convert a given local position to a 1D index for the byte array
     /// </summary>
@@ -354,15 +372,20 @@ public class TerrainChunk : MonoBehaviour
     /// <param name="pos">A 3D position in world space</param>
     /// <param name="settings">A NoiseSettings struct containing the settings for the layered noise</param>
     /// <returns>A 3D layered noise value >= 0.0</returns>
-    public static float LayeredNoise(Vector3 pos, NoiseSettings settings, FastNoiseLite fastNoise)
+    public static float LayeredNoise(Vector3 pos)
     {
         float x, y, z;
         x = pos.x;
         y = pos.y;
         z = pos.z;
-        settings.fastNoise.DomainWarp(ref x, ref y, ref z);
-        float noiseVal = (fastNoise.GetNoise(x,y,z) + 1) / 2f;
-        return  Mathf.Max(0,noiseVal - settings.recede) * settings.strength;
+
+        //settings.fastNoise.DomainWarp(ref x, ref y, ref z);
+        // float noiseVal = (fastNoise.GetNoise(x,y,z) + 1) / 2f;
+        //noiseVal *= Mathf.PerlinNoise(pos.x * settings.frequency / 2, pos.z * settings.frequency / 2) * 2;
+        //return  Mathf.Max(0,noiseVal - settings.recede) * settings.strength;
+        //float baseNoise = Mathf.PerlinNoise((pos.x + 1000f) / 60f, (pos.z + 1000f) / 60f);
+        float biomeNoise = 60 * Mathf.Clamp(Mathf.PerlinNoise((pos.x + 6000f) / 50f, (pos.z + 6000f) / 50f)*1.5f, 0.5f, 2f);
+        return biomeNoise;
     }
     //Container class for storing the chunk information (used to pass data between threads)
     //(Mesh vertices, triangles, arrays, world position, noise settings, saved data)
@@ -390,11 +413,10 @@ public class TerrainChunk : MonoBehaviour
 
         //Saved chunk data object (contains dictionary of destroyed/placed blocks)
         public SavedChunkData savedData;
-        public ChunkData(Vector3 chunkWorldPos,  Vector3Int chunkSize, NoiseSettings noiseSettings, int byteArraySize, SavedChunkData savedData)
+        public ChunkData(Vector3 chunkWorldPos,  Vector3Int chunkSize, int byteArraySize, SavedChunkData savedData)
         {
             this.chunkWorldPos = chunkWorldPos;
             this.chunkSize = chunkSize;
-            this.settings = noiseSettings;
             this.byteArr = new byte[byteArraySize];
             this.savedData = savedData;
         }

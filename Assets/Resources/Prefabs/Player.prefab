@@ -32,7 +32,7 @@ Transform:
   m_GameObject: {fileID: 875444761345660423}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 50, z: 0}
-  m_LocalScale: {x: 1.5, y: 1.5, z: 1.5}
+  m_LocalScale: {x: 2.5, y: 2.5, z: 2.5}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1159616751699338497}
@@ -146,7 +146,7 @@ MonoBehaviour:
   groundCheckRadius: 0.3
   waterThrowAmt: 10
   waterThrowForce: 800
-  waterBallPrefab: {fileID: 0}
+  waterBallPrefab: {fileID: 9041302654898494449, guid: 7ac49b33f725aa0459a7671dd10371a9, type: 3}
   terrainLayer:
     serializedVersion: 2
     m_Bits: 64
