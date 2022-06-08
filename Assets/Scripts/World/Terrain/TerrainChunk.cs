@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Collections.Concurrent;
 
 public class TerrainChunk : MonoBehaviour
 {
@@ -29,7 +31,7 @@ public class TerrainChunk : MonoBehaviour
         //Get the mesh components from the chunk game object
         meshRenderer = GetComponent<MeshRenderer>();
         meshFilter = GetComponent<MeshFilter>();
-        meshCollider = GetComponent<MeshCollider>();
+        //meshCollider = GetComponent<MeshCollider>();
     }
     /// <summary>
     /// Get the local position of the given world space position relative to this chunk
@@ -105,6 +107,7 @@ public class TerrainChunk : MonoBehaviour
         if (chunkData == null) return;
         chunkData.Clear();
     }
+    CancellationTokenSource tokenSource;
     /// <summary>
     /// Begin generation of the chunk mesh.
     /// If chunk had previous data, clear it. Start thread to generate byte values at each block from octave noise.
@@ -118,8 +121,25 @@ public class TerrainChunk : MonoBehaviour
         ClearChunk();
         this.chunkCoord = chunkCoord;
         this.chunkWorldPos = chunkWorldPos;
+
         chunkData = new ChunkData(chunkWorldPos, chunkSize, chunkSize.x * chunkSize.y * chunkSize.z, savedData);
+
+        tokenSource = new CancellationTokenSource();
+        chunkData.token = tokenSource.Token;
         ThreadPool.QueueUserWorkItem(new WaitCallback(FullGenerate), chunkData);
+    }
+    public void CancelThread()
+    {
+        if (!generated && tokenSource != null)
+        {
+            tokenSource.Cancel();
+        }
+    }
+    public static void ThreadGenerate(object state)
+    {
+        ChunkData chunkData = (ChunkData)state;
+        GenerateMesh(state);
+        chunkData.jobComplete = true;
     }
     public static void FullGenerate(object state)
     {   
@@ -140,14 +160,15 @@ public class TerrainChunk : MonoBehaviour
 
         //Loop over all local positions (in the x,y, and z directions)
         Vector3 pos = Vector3.zero;
-        for (int i = 0; i < chunkData.chunkSize.x; i++)
+        for(int i = 0; i < chunkData.chunkSize.x; i++)
         {
             for(int j = 0; j < chunkData.chunkSize.y; j++)
             {
-                for (int k = 0; k < chunkData.chunkSize.z; k++)
+                for(int k = 0; k < chunkData.chunkSize.z; k++)
                 {
-                    pos.Set(i, j, k);
+                    if (chunkData.token.IsCancellationRequested) { return; }
                     //Convert the 3D local space coordinate to an index to access a 1D array of byte values
+                    pos.Set(i, j, k);
                     int index = GetByteArrayIndex(pos, chunkData.chunkSize);
                     //Generate the byte value at the world space position of the block, with current noise settings
                     //Set the byte value at the index, to the generated value
@@ -157,6 +178,7 @@ public class TerrainChunk : MonoBehaviour
             }
         }
     }
+    private static Mutex mutexLock = new Mutex();
     /// <summary>
     /// Generate the chunk mesh from the generate byte values
     /// </summary>
@@ -166,29 +188,102 @@ public class TerrainChunk : MonoBehaviour
     {
         //Get the chunk data from the worker argument passed on the method call.
         ChunkData chunkData = (ChunkData)state;
+        
+        if (chunkData.fillCount == 0) { return; }
+        
+        /*int blockCount = chunkData.chunkSize.x * chunkData.chunkSize.y * chunkData.chunkSize.z;
+        Parallel.For(0, blockCount, index => {
+            Vector3 pos = GetPositionFromIndex(index, chunkData.chunkSize);
+            Vector3Int intPos = Vector3Int.FloorToInt(pos);
 
+            //Check if saved block is actually an air block, if so continue to the next block
+            if (chunkData.savedData != null && chunkData.savedData.HasByte(intPos) && chunkData.savedData.GetByte(intPos) == 1)
+            {
+                //Do Nothing
+            }
+            else if (chunkData.savedData != null && chunkData.savedData.HasByte(intPos) && chunkData.savedData.GetByte(intPos) == 0)
+            {
+                return;
+            }
+            else if (chunkData.byteArr[index] == 0)
+            {
+                return;
+            }
+
+            //If we are here then the current block is solid
+            //Loop over each direction
+            Parallel.For(0, CustomMath.NUMDIRECTIONS, dIndex =>
+            {
+               Vector3 dir = CustomMath.directions[dIndex];
+                //Get the block adjacent to the current block in the given direction
+                Vector3 surrounding = pos + dir;
+                //Get the calculate adjacent vector as an integer vector
+                Vector3Int surroundingInt = intPos + CustomMath.intDirections[dIndex];
+
+
+                //If the calculated adjacent block is inside the bounds of this chunk continue into this if
+                if (surrounding.x < chunkData.chunkSize.x && surrounding.x >= 0 && surrounding.y < chunkData.chunkSize.y && surrounding.y >= 0 && surrounding.z < chunkData.chunkSize.z && surrounding.z >= 0)
+                {
+                    //If the block adjacent to the current block is air then construct a cube face in its direction
+                    if (chunkData.byteArr[GetByteArrayIndex(surrounding, chunkData.chunkSize)] == 0)
+                    {
+                        //Array of directions for constructing the cube face with quad normal = dir
+                        Vector3[] wlDir = CustomMath.directionDictionary[dir];
+                        //Add a quad to the current vertices and triangles of the chunk, with width and length relative to the quad normal
+                        AddQuadConcurrent(chunkData.vertices, chunkData.triangles, pos + wlDir[2], wlDir[0], wlDir[1], dir);
+                    }
+                    //Else if the chunk has saved data at this adjacent block and its saved data is an air block construct a cube face in its direction
+                    else if ((chunkData.savedData != null && chunkData.savedData.HasByte(surroundingInt) && chunkData.savedData.GetByte(surroundingInt) == 0))
+                    {   
+                        //Array of directions for constructing the cube face with quad normal = dir
+                        Vector3[] wlDir = CustomMath.directionDictionary[dir];
+                        //Add a quad to the current vertices and triangles of the chunk, with width and length relative to the quad normal
+                        AddQuadConcurrent(chunkData.vertices, chunkData.triangles, pos + wlDir[2], wlDir[0], wlDir[1], dir);
+                    }
+                }
+                //Else if the block is outside the current chunk bounds quickly generate the value the block would have in the next chunk
+                //Or if the chunk has saved data about the adjacent block outside the bounds and that block is air construct a face in its direction
+                //NOTE: the chunk saved data will contain information about blocks outside of the chunk bounds due to how saved information is added to the chunks
+                else if (GenerateBlock(chunkData.chunkWorldPos + surrounding) == 0 || (chunkData.savedData != null && chunkData.savedData.HasByte(surroundingInt) && chunkData.savedData.GetByte(surroundingInt) == 0))
+                {
+                    //Array of directions for constructing the cube face with quad normal = dir
+                    Vector3[] wlDir = CustomMath.directionDictionary[dir];
+                    //Add a quad to the current vertices and triangles of the chunk, with width and length relative to the quad normal
+                    AddQuadConcurrent(chunkData.vertices, chunkData.triangles, pos + wlDir[2], wlDir[0], wlDir[1], dir);
+                }
+            });
+
+        });
+        */
+        
+        //Loop over all local space positions
         Vector3 pos = Vector3.zero;
         Vector3Int intPos = Vector3Int.zero;
-        //Loop over all local space positions
         for (int i = 0; i < chunkData.chunkSize.x; i++)
         {
             for (int k = 0; k < chunkData.chunkSize.z; k++)
             {
                 for (int j = 0; j < chunkData.chunkSize.y; j++)
                 {
+                    if(chunkData.token.IsCancellationRequested) { return; }
                     pos.Set(i, j, k);
                     intPos.Set(i, j, k);
 
                     //Check if saved block is actually an air block, if so continue to the next block
-                    if(chunkData.savedData != null && chunkData.savedData.HasByte(intPos) && chunkData.savedData.GetByte(intPos) == 0)
+                    if(chunkData.savedData != null && chunkData.savedData.HasByte(intPos) && chunkData.savedData.GetByte(intPos) == 1)
+                    {
+                        //Do Nothing
+                    }
+                    else if(chunkData.savedData != null && chunkData.savedData.HasByte(intPos) && chunkData.savedData.GetByte(intPos) == 0)
                     {
                         continue;
                     }
-                    else if (chunkData.GetByteValue(GetByteArrayIndex(pos, chunkData.chunkSize)) == 0 && (chunkData.savedData != null && chunkData.savedData.HasByte(intPos) && chunkData.savedData.GetByte(intPos) != 1))
+                    else if (chunkData.byteArr[GetByteArrayIndex(pos, chunkData.chunkSize)] == 0)
                     {
                         continue;
                     }
 
+                    //If we are here then the current block is solid
                     //Loop over each direction
                     for (int dIndex = 0; dIndex < CustomMath.NUMDIRECTIONS; dIndex++)
                     {
@@ -198,40 +293,36 @@ public class TerrainChunk : MonoBehaviour
                         //Get the calculate adjacent vector as an integer vector
                         Vector3Int surroundingInt = intPos + CustomMath.intDirections[dIndex];
 
-                        //If the chunk has a solid block at the current position continue into the if (as we will need to be the cube faces around it)
-                        //OR If the chunk has saved data at this position and it is a solid block continue into this if
-                        if(chunkData.byteArr[GetByteArrayIndex(pos, chunkData.chunkSize)] == 1 || (chunkData.savedData != null && chunkData.savedData.HasByte(intPos) && chunkData.savedData.GetByte(intPos) == 1))
+                        
+                        //If the calculated adjacent block is inside the bounds of this chunk continue into this if
+                        if (surrounding.x < chunkData.chunkSize.x && surrounding.x >= 0 && surrounding.y < chunkData.chunkSize.y && surrounding.y >= 0 && surrounding.z < chunkData.chunkSize.z && surrounding.z >= 0)
                         {
-                            //If the calculated adjacent block is inside the bounds of this chunk continue into this if
-                            if (surrounding.x < chunkData.chunkSize.x && surrounding.x >= 0 && surrounding.y < chunkData.chunkSize.y && surrounding.y >= 0 && surrounding.z < chunkData.chunkSize.z && surrounding.z >= 0)
-                            {
-                                //If the block adjacent to the current block is air then construct a cube face in its direction
-                                if (chunkData.byteArr[GetByteArrayIndex(surrounding, chunkData.chunkSize)] == 0)
-                                {
-                                    //Array of directions for constructing the cube face with quad normal = dir
-                                    Vector3[] wlDir = CustomMath.directionDictionary[dir];
-                                    //Add a quad to the current vertices and triangles of the chunk, with width and length relative to the quad normal
-                                    AddQuad(chunkData.vertices, chunkData.triangles, pos + wlDir[2], wlDir[0], wlDir[1], dir);
-                                }
-                                //Else if the chunk has saved data at this adjacent block and its saved data is an air block construct a cube face in its direction
-                                else if((chunkData.savedData != null && chunkData.savedData.HasByte(surroundingInt) && chunkData.savedData.GetByte(surroundingInt) == 0))
-                                {
-                                    //Array of directions for constructing the cube face with quad normal = dir
-                                    Vector3[] wlDir = CustomMath.directionDictionary[dir];
-                                    //Add a quad to the current vertices and triangles of the chunk, with width and length relative to the quad normal
-                                    AddQuad(chunkData.vertices, chunkData.triangles, pos + wlDir[2], wlDir[0], wlDir[1], dir);
-                                }
-                            }
-                            //Else if the block is outside the current chunk bounds quickly generate the value the block would have in the next chunk
-                            //Or if the chunk has saved data about the adjacent block outside the bounds and that block is air construct a face in its direction
-                            //NOTE: the chunk saved data will contain information about blocks outside of the chunk bounds due to how saved information is added to the chunks
-                            else if(GenerateBlock(chunkData.chunkWorldPos + surrounding) == 0 || (chunkData.savedData != null && chunkData.savedData.HasByte(surroundingInt) && chunkData.savedData.GetByte(surroundingInt) == 0))
+                            //If the block adjacent to the current block is air then construct a cube face in its direction
+                            if (chunkData.byteArr[GetByteArrayIndex(surrounding, chunkData.chunkSize)] == 0)
                             {
                                 //Array of directions for constructing the cube face with quad normal = dir
                                 Vector3[] wlDir = CustomMath.directionDictionary[dir];
                                 //Add a quad to the current vertices and triangles of the chunk, with width and length relative to the quad normal
                                 AddQuad(chunkData.vertices, chunkData.triangles, pos + wlDir[2], wlDir[0], wlDir[1], dir);
                             }
+                            //Else if the chunk has saved data at this adjacent block and its saved data is an air block construct a cube face in its direction
+                            else if((chunkData.savedData != null && chunkData.savedData.HasByte(surroundingInt) && chunkData.savedData.GetByte(surroundingInt) == 0))
+                            {
+                                //Array of directions for constructing the cube face with quad normal = dir
+                                Vector3[] wlDir = CustomMath.directionDictionary[dir];
+                                //Add a quad to the current vertices and triangles of the chunk, with width and length relative to the quad normal
+                                AddQuad(chunkData.vertices, chunkData.triangles, pos + wlDir[2], wlDir[0], wlDir[1], dir);
+                            }
+                        }
+                        //Else if the block is outside the current chunk bounds quickly generate the value the block would have in the next chunk
+                        //Or if the chunk has saved data about the adjacent block outside the bounds and that block is air construct a face in its direction
+                        //NOTE: the chunk saved data will contain information about blocks outside of the chunk bounds due to how saved information is added to the chunks
+                        else if(GenerateBlock(chunkData.chunkWorldPos + surrounding) == 0 || (chunkData.savedData != null && chunkData.savedData.HasByte(surroundingInt) && chunkData.savedData.GetByte(surroundingInt) == 0))
+                        {
+                            //Array of directions for constructing the cube face with quad normal = dir
+                            Vector3[] wlDir = CustomMath.directionDictionary[dir];
+                            //Add a quad to the current vertices and triangles of the chunk, with width and length relative to the quad normal
+                            AddQuad(chunkData.vertices, chunkData.triangles, pos + wlDir[2], wlDir[0], wlDir[1], dir);
                         }
                     }
                 }
@@ -251,7 +342,7 @@ public class TerrainChunk : MonoBehaviour
     {
         this.mesh = mesh;
         meshFilter.sharedMesh = mesh;
-        meshCollider.sharedMesh = mesh;
+        //meshCollider.sharedMesh = mesh;
     }
     /// <summary>
     /// Adds vertices and triangle indices for a quad to the given vertex/triangle list
@@ -264,9 +355,9 @@ public class TerrainChunk : MonoBehaviour
     /// <param name="normal">Normal vector of quad face</param>
     public static void AddQuad(List<Vector3> vertices, List<int> triangles, Vector3 pos, Vector3 widthDir, Vector3 lengthDir, Vector3 normal)
     {
+        //mutexLock.WaitOne();
         //Calculate top and bottom left, right vertex positions based on given direction vectors
         Vector3 vBottomLeft = Vector3.zero, vBottomRight = Vector3.zero, vTopLeft = Vector3.zero, vTopRight = Vector3.zero;
-
         vBottomLeft = pos;
         vBottomRight = pos + widthDir;
         vTopLeft = pos + lengthDir;
@@ -302,6 +393,51 @@ public class TerrainChunk : MonoBehaviour
         vertices.Add(vBottomRight);
         vertices.Add(vTopLeft);
         vertices.Add(vTopRight);
+
+        //mutexLock.ReleaseMutex();
+    }
+    public static void AddQuadConcurrent(List<Vector3> vertices, List<int> triangles, Vector3 pos, Vector3 widthDir, Vector3 lengthDir, Vector3 normal)
+    {
+        //Calculate top and bottom left, right vertex positions based on given direction vectors
+        Vector3 vBottomLeft = Vector3.zero, vBottomRight = Vector3.zero, vTopLeft = Vector3.zero, vTopRight = Vector3.zero;
+        vBottomLeft = pos;
+        vBottomRight = pos + widthDir;
+        vTopLeft = pos + lengthDir;
+        vTopRight = pos + widthDir + lengthDir;
+
+        //If normal vector is left or forward flip the triangle to render on correct side (related to winding order)
+        mutexLock.WaitOne();
+        int vIndex = vertices.Count;
+        if (normal == Vector3.left || normal == Vector3.forward || normal == Vector3.down)
+        {
+            //Add the triangle indices to the list in a counter-clockwise order
+            triangles.Add(vIndex);
+            triangles.Add(vIndex + 1);
+            triangles.Add(vIndex + 2);
+
+            triangles.Add(vIndex + 2);
+            triangles.Add(vIndex + 1);
+            triangles.Add(vIndex + 3);
+        }
+        else
+        {
+            //Add the triangle indices to the list in a clockwise order
+            triangles.Add(vIndex);
+            triangles.Add(vIndex + 2);
+            triangles.Add(vIndex + 1);
+
+            triangles.Add(vIndex + 2);
+            triangles.Add(vIndex + 3);
+            triangles.Add(vIndex + 1);
+        }
+
+        //Add the calculated vertices to the vertex list
+        vertices.Add(vBottomLeft);
+        vertices.Add(vBottomRight);
+        vertices.Add(vTopLeft);
+        vertices.Add(vTopRight);
+
+        mutexLock.ReleaseMutex();
     }
     /// <summary>
     /// Generate the byte value at the given world position with the current NoiseSettings
@@ -317,7 +453,7 @@ public class TerrainChunk : MonoBehaviour
         //float val = -pos.y + LayeredNoise(pos, settings, settings.fastNoise);
         float val = -pos.y + LayeredNoise(pos);
         //If the value is greater than the air block cutoff it is a solid block (set the output to 1)
-        if(val > 70f || SuperEval3D(4f,100f,100f,100f,pos.x,pos.y, pos.z, 25f, 0f))
+        if(val > 70f)
         {
             output = 1;
         }
@@ -366,6 +502,20 @@ public class TerrainChunk : MonoBehaviour
         return (int)pos.x + chunkSize.x * ((int)pos.y + chunkSize.y * (int)pos.z);
     }
     /// <summary>
+    /// Convert a given 1D index to a 3D local position
+    /// </summary>
+    /// <param name="index">A byte array index</param>
+    /// <param name="chunkSize">The world scale of the chunk</param>
+    /// <returns>A 3D position in local space</returns>
+    public static Vector3 GetPositionFromIndex(int index, Vector3Int chunkSize)
+    {
+        int z = index / (chunkSize.x * chunkSize.y);
+        index -= (z * chunkSize.x * chunkSize.y);
+        int y = index / chunkSize.x;
+        int x = index % chunkSize.x;
+        return new Vector3(x, y, z);
+    }
+    /// <summary>
     /// Generate a 3D layered noise value at the given world space position with the given settings.
     /// NOTE: Upper bound on noise value returned varies with noise settings.
     /// </summary>
@@ -391,6 +541,8 @@ public class TerrainChunk : MonoBehaviour
     //(Mesh vertices, triangles, arrays, world position, noise settings, saved data)
     public class ChunkData
     {
+        public CancellationToken token;
+        public int fillCount = 0;
         //List of vertex positions for the chunk mesh
         public List<Vector3> vertices = new List<Vector3>();
         //List of triangle indices for the chunk mesh
@@ -437,6 +589,7 @@ public class TerrainChunk : MonoBehaviour
         public void SetByteValue(int i, byte b)
         {
             this.byteArr[i] = b;
+            this.fillCount += (int)(b);
         }
         /// <summary>
         /// Clears the vertex and triangle list
