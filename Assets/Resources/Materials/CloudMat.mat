@@ -50,7 +50,7 @@ Material:
     - _CloudSoftness: 0.55
     - _FirstPassScale: 0.005
     - _GroundMultiplier: -107.99
-    - _MiddleYValue: 70
+    - _MiddleYValue: 0
     - _OffsetDistance: 0.1
     - _QueueControl: 0
     - _QueueOffset: 0
@@ -64,7 +64,7 @@ Material:
     m_Colors:
     - _FirstPassScale: {r: 1, g: 1, b: 0, a: 0}
     - _LightColor: {r: 1, g: 1, b: 1, a: 1}
-    - _LightDir: {r: 0, g: -0.70710677, b: 0.7071068, a: 0}
+    - _LightDir: {r: 0, g: -0.5735765, b: -0.81915224, a: 0}
     - _SecondPassScale: {r: 0.5, g: 0.5, b: 0, a: 0}
   m_BuildTextureStacks: []
 --- !u!114 &1621513033121297992

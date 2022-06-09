@@ -171,7 +171,7 @@ MonoBehaviour:
     ModeOverride: 0
     LensShift: {x: 0, y: 0}
     GateFit: 2
-    m_SensorSize: {x: 2.88, y: 1}
+    m_SensorSize: {x: 1.9169611, y: 1}
   m_Transitions:
     m_BlendHint: 0
     m_InheritPosition: 0
@@ -5953,12 +5953,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d19a96bdf66f4364e8796bbc21077f94, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  generateNewTerrain: 1
   chunkPrefab: {fileID: 5124953688566650318, guid: 40041cb9fae5ed54db65af5628d9a069, type: 3}
   viewer: {fileID: 0}
-  viewDist: {x: 6, y: 4, z: 6}
+  viewDist: {x: 8, y: 6, z: 8}
   chunkDimensions: {x: 16, y: 16, z: 16}
-  chunkQueueTime: 0
+  chunkQueueTime: 0.0001
   displayChunkPos: {x: 0, y: -64, z: 0}
   displayChunkSize: {x: 64, y: 64, z: 64}
   chunksToRegenerate: []
@@ -6656,7 +6655,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   horizontalStackSize: 40
   cloudHeight: 15
-  quadMesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 3}
+  quadMesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
   cloudMat: {fileID: 2100000, guid: 0666eb116924d7e4c96cf03260903705, type: 2}
   layer: 0
   gameCamera: {fileID: 1187964674}
@@ -6688,7 +6687,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1658557523}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 70, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 30, y: 1, z: 30}
   m_ConstrainProportionsScale: 0
   m_Children: []

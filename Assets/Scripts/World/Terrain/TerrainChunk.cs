@@ -4,9 +4,12 @@ using UnityEngine;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
+using UnityEngine.Profiling;
+using System.ComponentModel;
 
 public class TerrainChunk : MonoBehaviour
 {
+    WaitCallback callback;
     //A 3D chunk index
     public Vector3Int chunkCoord;
     //A 3D chunk position in world space
@@ -18,7 +21,6 @@ public class TerrainChunk : MonoBehaviour
     MeshRenderer meshRenderer;
     MeshFilter meshFilter;
     MeshCollider meshCollider;
-    Mesh mesh;
 
     //Chunk data container (used to pass chunk information between threads)
     ChunkData chunkData;
@@ -26,12 +28,20 @@ public class TerrainChunk : MonoBehaviour
     //True if chunk mesh is generated, otherwise false
     public bool generated = false;
 
+    Mesh chunkMesh;
+
     void Awake()
     {
         //Get the mesh components from the chunk game object
         meshRenderer = GetComponent<MeshRenderer>();
         meshFilter = GetComponent<MeshFilter>();
-        //meshCollider = GetComponent<MeshCollider>();
+        meshCollider = GetComponent<MeshCollider>();
+    }
+    public void InstantiateChunkData(int byteArrayLength, NoiseSettings settings)
+    {
+        chunkData = new ChunkData(Vector3.zero, Vector3Int.zero, byteArrayLength, null);
+        chunkData.settings = settings;
+        chunkMesh = new Mesh();
     }
     /// <summary>
     /// Get the local position of the given world space position relative to this chunk
@@ -85,9 +95,9 @@ public class TerrainChunk : MonoBehaviour
     /// </summary>
     public void WaitForByteArray()
     {
-        if(!generated && chunkData != null && chunkData.jobComplete)
+        if(!generated && chunkData.jobComplete)
         {
-            Mesh chunkMesh = new Mesh();
+            chunkMesh.Clear();
             chunkMesh.vertices = chunkData.vertexArray;
             chunkMesh.triangles = chunkData.triangleArray;
 
@@ -95,6 +105,7 @@ public class TerrainChunk : MonoBehaviour
             UpdateMesh(chunkMesh);
 
             generated = true;
+            this.gameObject.SetActive(true);
         }
     }
     /// <summary>
@@ -104,10 +115,11 @@ public class TerrainChunk : MonoBehaviour
     {
         generated = false;
 
-        if (chunkData == null) return;
-        chunkData.Clear();
+        if (chunkData != null)
+        {
+            chunkData.Reset();
+        }
     }
-    CancellationTokenSource tokenSource;
     /// <summary>
     /// Begin generation of the chunk mesh.
     /// If chunk had previous data, clear it. Start thread to generate byte values at each block from octave noise.
@@ -116,37 +128,25 @@ public class TerrainChunk : MonoBehaviour
     /// <param name="chunkWorldPos">A 3D chunk position in world space</param>
     /// <param name="settings">A NoiseSettings struct containing the values to use for the octave noise</param>
     /// <param name="savedData">The saved data for this chunk</param>
-    public void GenerateChunk(Vector3Int chunkCoord, Vector3 chunkWorldPos, SavedChunkData savedData)
+    public void PrepareChunk(Vector3Int chunkCoord, Vector3 chunkWorldPos, SavedChunkData savedData)
     {
         ClearChunk();
         this.chunkCoord = chunkCoord;
         this.chunkWorldPos = chunkWorldPos;
 
-        chunkData = new ChunkData(chunkWorldPos, chunkSize, chunkSize.x * chunkSize.y * chunkSize.z, savedData);
-
-        tokenSource = new CancellationTokenSource();
-        chunkData.token = tokenSource.Token;
-        ThreadPool.QueueUserWorkItem(new WaitCallback(FullGenerate), chunkData);
+        chunkData.chunkWorldPos = chunkWorldPos;
+        chunkData.chunkSize = chunkSize;
+        chunkData.savedData = savedData;
     }
-    public void CancelThread()
+    public void GenerateChunk()
     {
-        if (!generated && tokenSource != null)
-        {
-            tokenSource.Cancel();
-        }
-    }
-    public static void ThreadGenerate(object state)
-    {
-        ChunkData chunkData = (ChunkData)state;
-        GenerateMesh(state);
-        chunkData.jobComplete = true;
+        FullGenerate(chunkData);
     }
     public static void FullGenerate(object state)
     {   
         ChunkData chunkData = (ChunkData)state;
         GenerateByteArray(chunkData);
         GenerateMesh(chunkData);
-        chunkData.jobComplete = true;
     }
     /// <summary>
     /// Generate the byte values for a chunk.
@@ -160,25 +160,17 @@ public class TerrainChunk : MonoBehaviour
 
         //Loop over all local positions (in the x,y, and z directions)
         Vector3 pos = Vector3.zero;
-        for(int i = 0; i < chunkData.chunkSize.x; i++)
+        int blockCount = chunkData.byteArr.Length;
+        Parallel.For(0, blockCount, index =>
         {
-            for(int j = 0; j < chunkData.chunkSize.y; j++)
-            {
-                for(int k = 0; k < chunkData.chunkSize.z; k++)
-                {
-                    if (chunkData.token.IsCancellationRequested) { return; }
-                    //Convert the 3D local space coordinate to an index to access a 1D array of byte values
-                    pos.Set(i, j, k);
-                    int index = GetByteArrayIndex(pos, chunkData.chunkSize);
-                    //Generate the byte value at the world space position of the block, with current noise settings
-                    //Set the byte value at the index, to the generated value
-                    byte val = GenerateBlock(chunkData.chunkWorldPos + pos);
-                    chunkData.SetByteValue(index, val);
-                }
-            }
-        }
+            //Convert the 3D local space coordinate to an index to access a 1D array of byte values
+            Vector3 pos = GetPositionFromIndex(index, chunkData.chunkSize);
+            //Generate the byte value at the world space position of the block, with current noise settings
+            //Set the byte value at the index, to the generated value
+            byte val = GenerateBlock(chunkData.chunkWorldPos + pos);
+            chunkData.SetByteValue(index, val);
+        });
     }
-    private static Mutex mutexLock = new Mutex();
     /// <summary>
     /// Generate the chunk mesh from the generate byte values
     /// </summary>
@@ -189,73 +181,6 @@ public class TerrainChunk : MonoBehaviour
         //Get the chunk data from the worker argument passed on the method call.
         ChunkData chunkData = (ChunkData)state;
         
-        if (chunkData.fillCount == 0) { return; }
-        
-        /*int blockCount = chunkData.chunkSize.x * chunkData.chunkSize.y * chunkData.chunkSize.z;
-        Parallel.For(0, blockCount, index => {
-            Vector3 pos = GetPositionFromIndex(index, chunkData.chunkSize);
-            Vector3Int intPos = Vector3Int.FloorToInt(pos);
-
-            //Check if saved block is actually an air block, if so continue to the next block
-            if (chunkData.savedData != null && chunkData.savedData.HasByte(intPos) && chunkData.savedData.GetByte(intPos) == 1)
-            {
-                //Do Nothing
-            }
-            else if (chunkData.savedData != null && chunkData.savedData.HasByte(intPos) && chunkData.savedData.GetByte(intPos) == 0)
-            {
-                return;
-            }
-            else if (chunkData.byteArr[index] == 0)
-            {
-                return;
-            }
-
-            //If we are here then the current block is solid
-            //Loop over each direction
-            Parallel.For(0, CustomMath.NUMDIRECTIONS, dIndex =>
-            {
-               Vector3 dir = CustomMath.directions[dIndex];
-                //Get the block adjacent to the current block in the given direction
-                Vector3 surrounding = pos + dir;
-                //Get the calculate adjacent vector as an integer vector
-                Vector3Int surroundingInt = intPos + CustomMath.intDirections[dIndex];
-
-
-                //If the calculated adjacent block is inside the bounds of this chunk continue into this if
-                if (surrounding.x < chunkData.chunkSize.x && surrounding.x >= 0 && surrounding.y < chunkData.chunkSize.y && surrounding.y >= 0 && surrounding.z < chunkData.chunkSize.z && surrounding.z >= 0)
-                {
-                    //If the block adjacent to the current block is air then construct a cube face in its direction
-                    if (chunkData.byteArr[GetByteArrayIndex(surrounding, chunkData.chunkSize)] == 0)
-                    {
-                        //Array of directions for constructing the cube face with quad normal = dir
-                        Vector3[] wlDir = CustomMath.directionDictionary[dir];
-                        //Add a quad to the current vertices and triangles of the chunk, with width and length relative to the quad normal
-                        AddQuadConcurrent(chunkData.vertices, chunkData.triangles, pos + wlDir[2], wlDir[0], wlDir[1], dir);
-                    }
-                    //Else if the chunk has saved data at this adjacent block and its saved data is an air block construct a cube face in its direction
-                    else if ((chunkData.savedData != null && chunkData.savedData.HasByte(surroundingInt) && chunkData.savedData.GetByte(surroundingInt) == 0))
-                    {   
-                        //Array of directions for constructing the cube face with quad normal = dir
-                        Vector3[] wlDir = CustomMath.directionDictionary[dir];
-                        //Add a quad to the current vertices and triangles of the chunk, with width and length relative to the quad normal
-                        AddQuadConcurrent(chunkData.vertices, chunkData.triangles, pos + wlDir[2], wlDir[0], wlDir[1], dir);
-                    }
-                }
-                //Else if the block is outside the current chunk bounds quickly generate the value the block would have in the next chunk
-                //Or if the chunk has saved data about the adjacent block outside the bounds and that block is air construct a face in its direction
-                //NOTE: the chunk saved data will contain information about blocks outside of the chunk bounds due to how saved information is added to the chunks
-                else if (GenerateBlock(chunkData.chunkWorldPos + surrounding) == 0 || (chunkData.savedData != null && chunkData.savedData.HasByte(surroundingInt) && chunkData.savedData.GetByte(surroundingInt) == 0))
-                {
-                    //Array of directions for constructing the cube face with quad normal = dir
-                    Vector3[] wlDir = CustomMath.directionDictionary[dir];
-                    //Add a quad to the current vertices and triangles of the chunk, with width and length relative to the quad normal
-                    AddQuadConcurrent(chunkData.vertices, chunkData.triangles, pos + wlDir[2], wlDir[0], wlDir[1], dir);
-                }
-            });
-
-        });
-        */
-        
         //Loop over all local space positions
         Vector3 pos = Vector3.zero;
         Vector3Int intPos = Vector3Int.zero;
@@ -265,10 +190,8 @@ public class TerrainChunk : MonoBehaviour
             {
                 for (int j = 0; j < chunkData.chunkSize.y; j++)
                 {
-                    if(chunkData.token.IsCancellationRequested) { return; }
                     pos.Set(i, j, k);
                     intPos.Set(i, j, k);
-
                     //Check if saved block is actually an air block, if so continue to the next block
                     if(chunkData.savedData != null && chunkData.savedData.HasByte(intPos) && chunkData.savedData.GetByte(intPos) == 1)
                     {
@@ -282,7 +205,6 @@ public class TerrainChunk : MonoBehaviour
                     {
                         continue;
                     }
-
                     //If we are here then the current block is solid
                     //Loop over each direction
                     for (int dIndex = 0; dIndex < CustomMath.NUMDIRECTIONS; dIndex++)
@@ -328,11 +250,9 @@ public class TerrainChunk : MonoBehaviour
                 }
             }
         }
-
-        //Convert the vertex and triangle list to arrays (as Mesh object only takes arrays)
-        //This is done in the separate thread to offload more work from the main thread
         chunkData.vertexArray = chunkData.vertices.ToArray();
         chunkData.triangleArray = chunkData.triangles.ToArray();
+        chunkData.jobComplete = true;
     }
     /// <summary>
     /// Set the chunk mesh filter and collider to use the given mesh
@@ -340,9 +260,15 @@ public class TerrainChunk : MonoBehaviour
     /// <param name="mesh">A completed chunk mesh</param>
     void UpdateMesh(Mesh mesh)
     {
-        this.mesh = mesh;
         meshFilter.sharedMesh = mesh;
-        //meshCollider.sharedMesh = mesh;
+        if (mesh.vertexCount > 0)
+        {
+            meshCollider.sharedMesh = mesh;
+        }
+        else
+        {
+            meshCollider.sharedMesh = null;
+        }
     }
     /// <summary>
     /// Adds vertices and triangle indices for a quad to the given vertex/triangle list
@@ -355,7 +281,6 @@ public class TerrainChunk : MonoBehaviour
     /// <param name="normal">Normal vector of quad face</param>
     public static void AddQuad(List<Vector3> vertices, List<int> triangles, Vector3 pos, Vector3 widthDir, Vector3 lengthDir, Vector3 normal)
     {
-        //mutexLock.WaitOne();
         //Calculate top and bottom left, right vertex positions based on given direction vectors
         Vector3 vBottomLeft = Vector3.zero, vBottomRight = Vector3.zero, vTopLeft = Vector3.zero, vTopRight = Vector3.zero;
         vBottomLeft = pos;
@@ -393,51 +318,6 @@ public class TerrainChunk : MonoBehaviour
         vertices.Add(vBottomRight);
         vertices.Add(vTopLeft);
         vertices.Add(vTopRight);
-
-        //mutexLock.ReleaseMutex();
-    }
-    public static void AddQuadConcurrent(List<Vector3> vertices, List<int> triangles, Vector3 pos, Vector3 widthDir, Vector3 lengthDir, Vector3 normal)
-    {
-        //Calculate top and bottom left, right vertex positions based on given direction vectors
-        Vector3 vBottomLeft = Vector3.zero, vBottomRight = Vector3.zero, vTopLeft = Vector3.zero, vTopRight = Vector3.zero;
-        vBottomLeft = pos;
-        vBottomRight = pos + widthDir;
-        vTopLeft = pos + lengthDir;
-        vTopRight = pos + widthDir + lengthDir;
-
-        //If normal vector is left or forward flip the triangle to render on correct side (related to winding order)
-        mutexLock.WaitOne();
-        int vIndex = vertices.Count;
-        if (normal == Vector3.left || normal == Vector3.forward || normal == Vector3.down)
-        {
-            //Add the triangle indices to the list in a counter-clockwise order
-            triangles.Add(vIndex);
-            triangles.Add(vIndex + 1);
-            triangles.Add(vIndex + 2);
-
-            triangles.Add(vIndex + 2);
-            triangles.Add(vIndex + 1);
-            triangles.Add(vIndex + 3);
-        }
-        else
-        {
-            //Add the triangle indices to the list in a clockwise order
-            triangles.Add(vIndex);
-            triangles.Add(vIndex + 2);
-            triangles.Add(vIndex + 1);
-
-            triangles.Add(vIndex + 2);
-            triangles.Add(vIndex + 3);
-            triangles.Add(vIndex + 1);
-        }
-
-        //Add the calculated vertices to the vertex list
-        vertices.Add(vBottomLeft);
-        vertices.Add(vBottomRight);
-        vertices.Add(vTopLeft);
-        vertices.Add(vTopRight);
-
-        mutexLock.ReleaseMutex();
     }
     /// <summary>
     /// Generate the byte value at the given world position with the current NoiseSettings
@@ -541,14 +421,12 @@ public class TerrainChunk : MonoBehaviour
     //(Mesh vertices, triangles, arrays, world position, noise settings, saved data)
     public class ChunkData
     {
-        public CancellationToken token;
-        public int fillCount = 0;
         //List of vertex positions for the chunk mesh
         public List<Vector3> vertices = new List<Vector3>();
         //List of triangle indices for the chunk mesh
         public List<int> triangles = new List<int>();
+        public List<Color> colors = new List<Color>();
 
-        //Array representations of vertex/triangle lists
         public Vector3[] vertexArray;
         public int[] triangleArray;
 
@@ -589,12 +467,11 @@ public class TerrainChunk : MonoBehaviour
         public void SetByteValue(int i, byte b)
         {
             this.byteArr[i] = b;
-            this.fillCount += (int)(b);
         }
         /// <summary>
-        /// Clears the vertex and triangle list
+        /// Resets the chunk data to default values
         /// </summary>
-        public void Clear()
+        public void Reset()
         {
             jobComplete = false;
             vertices.Clear();

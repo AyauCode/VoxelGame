@@ -2,10 +2,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.Threading;
+using UnityEngine.Profiling;
+using System.Collections.Concurrent;
 
 public class TerrainHandler : MonoBehaviour
 {
-    public bool generateNewTerrain = true;
     public static TerrainHandler instance;
     public GameObject chunkPrefab;
     public Transform viewer;
@@ -44,33 +45,30 @@ public class TerrainHandler : MonoBehaviour
     public Vector3 displayChunkPos;
     public Vector3Int displayChunkSize;
 
-    float realChunkQueueTime = 0;
-    float countdown;
+    Thread chunkGenerateThread;
 
     public void Awake()
     {
         instance = this;
+        chunkGenerateThread = new Thread(GenerateChunks);
+        chunkGenerateThread.Start();
     }
     public void Init(Transform player)
     {
         this.viewer = player;
         int startChunks = (viewDist.x * 2 + 1) * (viewDist.y * 2 + 1) * (viewDist.z * 2 + 1);
+        NoiseSettings settings = CreateNoiseSettings();
         for(int i = 0; i < startChunks; i++)
         {
             //Create a new chunk object from prefab
             GameObject chunkObject = Instantiate(chunkPrefab);
             chunkObject.transform.SetParent(gameObject.transform, true);
             chunkObject.SetActive(false);
+            chunkObject.GetComponent<TerrainChunk>().InstantiateChunkData(chunkDimensions.x * chunkDimensions.y * chunkDimensions.z, settings);
             chunkPool.Enqueue(chunkObject);
         }
         //Run the chunk generaiton loop once on startup to make sure chunks are loaded in when the player spawns
         UpdateTerrain();
-        //Spawn all the chunks that were added to the generation queue (no delay, again to make sure some chunks are loaded when the player spawns)
-        while (chunkQueue.Count > 0)
-        {
-            DoChunkQueue();
-        }
-        realChunkQueueTime = chunkQueueTime;
     }
     /// <summary>
     /// Get a loaded terrain chunk containing the 3D point
@@ -142,7 +140,7 @@ public class TerrainHandler : MonoBehaviour
 
             //Regenerate the chunk mesh
             //(passing in chunkCoord(an x,y,z index of the chunk), its world space position, the current noiseSettings, and its savedData)
-            tc.GenerateChunk(tc.chunkCoord, new Vector3(tc.chunkCoord.x * chunkDimensions.x, tc.chunkCoord.y * chunkDimensions.y, tc.chunkCoord.z * chunkDimensions.z), savedData);
+            //tc.GenerateChunk(tc.chunkCoord, new Vector3(tc.chunkCoord.x * chunkDimensions.x, tc.chunkCoord.y * chunkDimensions.y, tc.chunkCoord.z * chunkDimensions.z), savedData);
         }
     }
     /// <summary>
@@ -193,7 +191,7 @@ public class TerrainHandler : MonoBehaviour
 
             //Regenerate the chunk mesh
             //(passing in chunkCoord(an x,y,z index of the chunk), its world space position, the current noiseSettings, and its savedData)
-            tc.GenerateChunk(tc.chunkCoord, new Vector3(tc.chunkCoord.x * chunkDimensions.x, tc.chunkCoord.y * chunkDimensions.y, tc.chunkCoord.z * chunkDimensions.z), savedData);
+            //tc.GenerateChunk(tc.chunkCoord, new Vector3(tc.chunkCoord.x * chunkDimensions.x, tc.chunkCoord.y * chunkDimensions.y, tc.chunkCoord.z * chunkDimensions.z), savedData);
         }
     }
     /// <summary>
@@ -216,7 +214,6 @@ public class TerrainHandler : MonoBehaviour
     public NoiseSettings CreateNoiseSettings()
     {
         noise = new FastNoiseLite(1);
-
 
         return new NoiseSettings(noise);
     }
@@ -248,6 +245,7 @@ public class TerrainHandler : MonoBehaviour
     //A chunk index vector
     //(not a huge need to be outside of the UpdateTerrain method, only slightly more performant since we dont have to make a new Vector3Int each run)
     Vector3Int chunkCoord = Vector3Int.zero;
+    Vector3 chunkWorldPos = Vector3.zero;
     /// <summary>
     /// Update the currently loaded TerrainChunks, load/unload chunks when they enter/leave the viewers view distance
     /// </summary>
@@ -265,8 +263,7 @@ public class TerrainHandler : MonoBehaviour
         int currentX = Mathf.RoundToInt(viewer.position.x / chunkDimensions.x);
         int currentY = Mathf.RoundToInt(viewer.position.y / chunkDimensions.y);
         int currentZ = Mathf.RoundToInt(viewer.position.z / chunkDimensions.z);
-
-        Vector3 chunkWorldPos = Vector3.zero;
+        
         //Loop over all chunk indices within view from (-viewDist to viewDist in each direction)
         for (int x = -viewDist.x; x < viewDist.x; x++)
         {
@@ -276,7 +273,6 @@ public class TerrainHandler : MonoBehaviour
                 {
                     //Get current chunk index
                     chunkCoord.Set(currentX + x, currentY + y, currentZ + z);
-
                     //If chunk exists (i.e. the chunk mesh has been generated), then remove it from the remove list as it is within the players view
                     if (chunks.ContainsKey(chunkCoord))
                     {
@@ -286,7 +282,7 @@ public class TerrainHandler : MonoBehaviour
                         terrainChunk.WaitForByteArray();
                         removeKeys.Remove(chunkCoord);
                     }
-                    else if(generateNewTerrain)
+                    else
                     {
                         //Create a new chunk object from prefab
                         GameObject chunkObject;
@@ -298,14 +294,9 @@ public class TerrainHandler : MonoBehaviour
                         {
                             chunkObject = Instantiate(chunkPrefab);
                         }
-                        //Set the chunk game object world space position (chunk index * world space scale)
-                        chunkObject.transform.position = new Vector3(chunkCoord.x * chunkDimensions.x, chunkCoord.y * chunkDimensions.y, chunkCoord.z * chunkDimensions.z);
-                        //Parent the chunk game obejct to the TerrainHandler game object for organization purposes (however keep its current position in world space)
-                        //Make sure the chunk game object is activated
-                        chunkObject.SetActive(true);
-
                         //Ger the TerrainChunk component from the newly created chunk object
                         TerrainChunk terrainChunk = chunkObject.GetComponent<TerrainChunk>();
+                        terrainChunk.gameObject.transform.position = new Vector3(chunkCoord.x * chunkDimensions.x, chunkCoord.y * chunkDimensions.y, chunkCoord.z * chunkDimensions.z);
 
                         //Add new TerrainChunk component to chunk dictionary (key = chunk index, value = terrain chunk component)
                         chunks.Add(chunkCoord, terrainChunk);
@@ -314,18 +305,21 @@ public class TerrainHandler : MonoBehaviour
                         //(this is used in a few calculations later so a dictionary key lookup does not have to be done each time)
                         terrainChunk.chunkCoord = chunkCoord;
                         terrainChunk.chunkSize = chunkDimensions;
-                        /*
+
                         //If the current chunk generation queue does not have this chunk waiting to generated add the chunk to the queue
-                        if (!chunkQueue.Contains(terrainChunk))
+                        /*if (!chunkQueue.Contains(terrainChunk))
                         {
                             chunkQueue.Enqueue(terrainChunk);
                         }*/
-                        chunkWorldPos.Set(terrainChunk.chunkCoord.x * chunkDimensions.x, terrainChunk.chunkCoord.y * chunkDimensions.y, terrainChunk.chunkCoord.z * chunkDimensions.z);
-                        terrainChunk.GenerateChunk(terrainChunk.chunkCoord, chunkWorldPos, GetSavedData(terrainChunk.chunkCoord));
+                        chunkWorldPos.Set(chunkCoord.x * chunkDimensions.x, chunkCoord.y * chunkDimensions.y, chunkCoord.z * chunkDimensions.z);
+                        
+                        terrainChunk.PrepareChunk(chunkCoord, chunkWorldPos, GetSavedData(chunkCoord));
+                        generateQueue.Enqueue(terrainChunk);
                     }
                 }
             }
         }
+
         Vector3Int key;
         GameObject chunkObj;
         //Loop over all chunks still in remove list and remove them (i.e. they are out of the view distance)
@@ -335,44 +329,25 @@ public class TerrainHandler : MonoBehaviour
             key = removeKeys[i];
             chunkObj = chunks[key].gameObject;
 
-            chunkObj.GetComponent<TerrainChunk>().CancelThread();
+            chunkObj.SetActive(false);
 
-            //Destroy the game object
-            //Destroy(chunkObj);
             chunkPool.Enqueue(chunkObj);
+            
             chunks.Remove(key);
-
             removeKeys.RemoveAt(i);
         }
-
         //Iterate over the chunks waiting to begin generation
         //DoChunkQueue();
     }
-    /// <summary>
-    /// Dequeue chunks in mesh generation queue and start its mesh generation every chunkQueueTime time step
-    /// </summary>
-    void DoChunkQueue()
+    static ConcurrentQueue<TerrainChunk> generateQueue = new ConcurrentQueue<TerrainChunk>();
+    public static void GenerateChunks()
     {
-        //Tick countdown down (using Time.deltaTime for correct time steps)
-        countdown -= Time.deltaTime;
-        //If countdown has finished continue into if
-        if (countdown <= 0)
+        while (true)
         {
-            //If there are chunks remaining in the queue to generate
-            if (chunkQueue.Count > 0)
+            if(generateQueue.TryDequeue(out TerrainChunk chunk))
             {
-                //Dequeue the chunk
-                TerrainChunk tc = chunkQueue.Dequeue();
-                //Verify the chunk is still within the viewers view distance, if it is continue into the if
-                if (chunks.ContainsKey(tc.chunkCoord))
-                {
-                    //Generate the chunk mesh
-                    //(passing in chunkCoord(an x,y,z index of the chunk), its world space position, the current noiseSettings, and its savedData if it exists)
-                    tc.GenerateChunk(tc.chunkCoord, new Vector3(tc.chunkCoord.x * chunkDimensions.x, tc.chunkCoord.y * chunkDimensions.y, tc.chunkCoord.z * chunkDimensions.z), GetSavedData(tc.chunkCoord));
-                }
+                chunk.GenerateChunk();
             }
-            //Reset the timer
-            countdown = realChunkQueueTime;
         }
     }
 }
