@@ -280,123 +280,6 @@ public class TerrainChunk : MonoBehaviour
     {
         return pos.x >= 0 && pos.x < chunkSize.x && pos.y >= 0 && pos.y < chunkSize.y && pos.z >= 0 && pos.z < chunkSize.z;
     }
-    public static void GenerateMeshGreedy(object state)
-    {
-        ChunkData chunkData = (ChunkData)state;
-        HashSet<Vector3Int> visited = new HashSet<Vector3Int>();
-        Vector3 pos = Vector3.zero;
-        Vector3Int intPos = Vector3Int.zero;
-        for(int i = 0; i < chunkData.chunkSize.x; i++)
-        {
-            for(int j = 0; j < chunkData.chunkSize.y; j++)
-            {
-                for(int k = 0; k < chunkData.chunkSize.z; k++)
-                {
-                    int endX = i+1, endY = j+1, endZ = k+1;
-                    pos.Set(i, j, k);
-                    intPos.Set(i, j, k);
-                    
-                    if (visited.Contains(intPos) || chunkData.GetByteValue(intPos) == 0) { continue; }
-
-                    for(int dx = intPos.x+1; dx < chunkData.chunkSize.x; dx++)
-                    {
-                        Vector3Int checkPos = new Vector3Int(dx, j, k);
-                        if(!visited.Contains(checkPos) && chunkData.GetByteValue(checkPos) == 1)
-                        {
-                            endX = dx + 1;
-                            visited.Add(checkPos);
-                        }
-                        else
-                        {
-                            break;
-                        }
-                    }
-                    for (int dy = intPos.y+1; dy < chunkData.chunkSize.y; dy++)
-                    {
-                        bool rowAllowed = true;
-                        for (int dx = intPos.x; dx < endX; dx++)
-                        {
-                            Vector3Int checkPos = new Vector3Int(dx, dy, k);
-                            if (!visited.Contains(checkPos) && chunkData.GetByteValue(checkPos) == 1)
-                            {
-
-                            }
-                            else
-                            {
-                                rowAllowed = false;
-                                break;
-                            }
-                        }
-                        if (rowAllowed)
-                        {
-                            endY = dy + 1;
-                            for (int dx = intPos.x; dx < endX; dx++)
-                            {
-                                Vector3Int checkPos = new Vector3Int(dx, dy, k);
-                                visited.Add(checkPos);
-                            }
-                        }
-                        else
-                        {
-                            break;
-                        }
-                    }
-                    for(int dz = intPos.z + 1; dz < chunkData.chunkSize.z; dz++)
-                    {
-                        bool blockAllowed = true;
-                        for (int dy = intPos.y; dy < endY; dy++)
-                        {
-                            bool rowAllowed = true;
-                            for (int dx = intPos.x; dx < endX; dx++)
-                            {
-                                Vector3Int checkPos = new Vector3Int(dx, dy, dz);
-                                if (!visited.Contains(checkPos) && chunkData.GetByteValue(checkPos) == 1)
-                                {
-
-                                }
-                                else
-                                {
-                                    rowAllowed = false;
-                                    break;
-                                }
-                            }
-                            if (rowAllowed)
-                            {
-                            }
-                            else
-                            {
-                                blockAllowed = false;
-                                break;
-                            }
-                        }
-                        if (blockAllowed)
-                        {
-                            endZ = dz + 1;
-                            for(int dy = intPos.y; dy < endY; dy++)
-                            {
-                                for(int dx = intPos.x; dx < endX; dx++)
-                                {
-                                    Vector3Int checkPos = new Vector3Int(dx, dy, dz);
-                                    visited.Add(checkPos);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            break;
-                        }
-                    }
-                    AddCube(pos, new Vector3(endX, endY, endZ), chunkData.vertices, chunkData.triangles, chunkData.colors);
-
-                    visited.Add(intPos);
-                }
-            }
-        }
-        chunkData.vertexArray = chunkData.vertices.ToArray();
-        chunkData.triangleArray = chunkData.triangles.ToArray();
-        chunkData.colorArray = chunkData.colors.ToArray();
-        chunkData.jobComplete = true;
-    }
     /// <summary>
     /// Generate the chunk mesh from the generate byte values
     /// </summary>
@@ -432,7 +315,6 @@ public class TerrainChunk : MonoBehaviour
                         Vector3 surrounding = pos + dir;
                         //Get the calculate adjacent vector as an integer vector
                         Vector3Int surroundingInt = intPos + CustomMath.intDirections[dIndex];
-
                         
                         //If the calculated adjacent block is inside the bounds of this chunk continue into this if
                         if (WithinChunkBounds(surrounding, chunkData.chunkSize))
@@ -450,12 +332,8 @@ public class TerrainChunk : MonoBehaviour
                         //Else if the block is outside the current chunk bounds quickly generate the value the block would have in the next chunk
                         //Or if the chunk has saved data about the adjacent block outside the bounds and that block is air construct a face in its direction
                         //NOTE: the chunk saved data will contain information about blocks outside of the chunk bounds due to how saved information is added to the chunks
-                        else if(GenerateBlock(chunkData.chunkWorldPos + surrounding) == 0)
+                        else if(chunkData.GetSurroundingByte(surroundingInt) == 0)
                         {
-                            if(chunkData.savedData != null && chunkData.savedData.HasByte(surroundingInt) && chunkData.savedData.GetByte(surroundingInt) == 1)
-                            {
-                                continue;
-                            }
                             //Array of directions for constructing the cube face with quad normal = dir
                             Vector3Int[] wlDir = CustomMath.intDirectionDictionary[dir];
                             //Add a quad to the current vertices and triangles of the chunk, with width and length relative to the quad normal
@@ -486,6 +364,7 @@ public class TerrainChunk : MonoBehaviour
             meshCollider.sharedMesh = null;
         }
     }
+    static float vOffset = 0.001f;
     /// <summary>
     /// Adds vertices and triangle indices for a quad to the given vertex/triangle list
     /// </summary>
@@ -499,10 +378,10 @@ public class TerrainChunk : MonoBehaviour
     {
         //Calculate top and bottom left, right vertex positions based on given direction vectors
         Vector3 vBottomLeft = Vector3.zero, vBottomRight = Vector3.zero, vTopLeft = Vector3.zero, vTopRight = Vector3.zero;
-        vBottomLeft = pos;
-        vBottomRight = pos + widthDir;
-        vTopLeft = pos + lengthDir;
-        vTopRight = pos + widthDir + lengthDir;
+        vBottomLeft = pos - widthDir*vOffset - lengthDir*vOffset;
+        vBottomRight = pos + widthDir + widthDir * vOffset - lengthDir*vOffset;
+        vTopLeft = pos + lengthDir - widthDir * vOffset + lengthDir * vOffset;
+        vTopRight = pos + widthDir + lengthDir + widthDir*vOffset + lengthDir*vOffset;
 
         //If normal vector is left or forward flip the triangle to render on correct side (related to winding order)
         int vIndex = vertices.Count;
@@ -539,10 +418,10 @@ public class TerrainChunk : MonoBehaviour
     {
         //Calculate top and bottom left, right vertex positions based on given direction vectors
         Vector3 vBottomLeft = Vector3.zero, vBottomRight = Vector3.zero, vTopLeft = Vector3.zero, vTopRight = Vector3.zero;
-        vBottomLeft = pos;
-        vBottomRight = pos + widthDir * width;
-        vTopLeft = pos + lengthDir * length;
-        vTopRight = pos + widthDir*width + lengthDir*length;
+        vBottomLeft = (pos) - widthDir * vOffset - lengthDir * vOffset;
+        vBottomRight = (pos + widthDir * width) + widthDir * vOffset - lengthDir * vOffset;
+        vTopLeft = (pos + lengthDir * length) - widthDir * vOffset + lengthDir * vOffset;
+        vTopRight = (pos + widthDir*width + lengthDir*length) + widthDir * vOffset + lengthDir * vOffset;
 
         //If normal vector is left or forward flip the triangle to render on correct side (related to winding order)
         int vIndex = vertices.Count;
@@ -670,9 +549,14 @@ public class TerrainChunk : MonoBehaviour
         //noiseVal *= Mathf.PerlinNoise(pos.x * settings.frequency / 2, pos.z * settings.frequency / 2) * 2;
         //return  Mathf.Max(0,noiseVal - settings.recede) * settings.strength;
         //float baseNoise = Mathf.PerlinNoise((pos.x + 1000f) / 60f, (pos.z + 1000f) / 60f);
-        //float biomeNoise = 60 * Mathf.Clamp(Mathf.PerlinNoise((pos.x + 6000f) / 50f, (pos.z + 6000f) / 50f)*1.5f, 0.5f, 2f);
-        float noiseValue = 20 * Mathf.PerlinNoise((pos.x + 1000) / 50f, (pos.z + 1000) / 50f);
-        return noiseValue;
+        float perlin = Mathf.PerlinNoise((pos.x + 6000f) / 50f, (pos.z + 6000f) / 50f) * 2 - 1;
+        perlin *= Mathf.PerlinNoise((pos.x + 1000f) / 50f, (pos.z + 1000f) / 50f);
+        if(perlin < 0)
+        {
+            perlin = 0;
+        }
+        float biomeNoise = 75 * perlin;
+        return biomeNoise;
     }
     //Container class for storing the chunk information (used to pass data between threads)
     //(Mesh vertices, triangles, arrays, world position, noise settings, saved data)
@@ -731,6 +615,14 @@ public class TerrainChunk : MonoBehaviour
                 return savedData.GetByte(pos);
             }
             return byteArr[i];
+        }
+        public byte GetSurroundingByte(Vector3Int pos)
+        {
+            if (savedData != null && savedData.HasByte(pos))
+            {
+                return savedData.GetByte(pos);
+            }
+            return GenerateBlock(chunkWorldPos + pos);
         }
         public byte GetByteValue(Vector3Int pos)
         {
