@@ -38,12 +38,13 @@ public class NoiseEditor : Editor
             TerrainChunk.GenerateByteArray(chunkData);
             double byteTime = (System.DateTime.UtcNow - epochStart).TotalMilliseconds;
 
-            TerrainChunk.GenerateMesh(chunkData);
+            TerrainChunk.GenerateMeshGreedyFace(chunkData);
             double endTime = (System.DateTime.UtcNow - epochStart).TotalMilliseconds;
 
             Mesh chunkMesh = new Mesh();
             chunkMesh.vertices = chunkData.vertexArray;
             chunkMesh.triangles = chunkData.triangleArray;
+            chunkMesh.colors = chunkData.colorArray;
             chunkMesh.RecalculateNormals();
 
             meshPreview = new MeshPreview(chunkMesh);
@@ -62,6 +63,14 @@ public class NoiseEditor : Editor
         if (meshPreview != null)
         {
             meshPreview.OnPreviewGUI(r, background);
+        }
+    }
+    public override void OnPreviewSettings()
+    {
+        base.OnPreviewSettings();
+        if(meshPreview != null)
+        {
+            meshPreview.OnPreviewSettings();
         }
     }
 }

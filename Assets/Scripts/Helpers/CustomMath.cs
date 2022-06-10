@@ -18,6 +18,14 @@ static class CustomMath
         { Vector3.forward, new Vector3[] { Vector3.right, Vector3.up , Vector3.forward} },
         { Vector3.back, new Vector3[] { Vector3.right, Vector3.up , Vector3.zero} },
     };
+    public static readonly Dictionary<Vector3, Vector3Int[]> intDirectionDictionary = new Dictionary<Vector3, Vector3Int[]> {
+        { Vector3.up, new Vector3Int[]{ Vector3Int.right, Vector3Int.forward, Vector3Int.up} },
+        { Vector3.down, new Vector3Int[] { Vector3Int.right, Vector3Int.forward, Vector3Int.zero } },
+        { Vector3.left, new Vector3Int[] { Vector3Int.forward, Vector3Int.up , Vector3Int.zero} },
+        { Vector3.right, new Vector3Int[] { Vector3Int.forward, Vector3Int.up , Vector3Int.right} },
+        { Vector3.forward, new Vector3Int[] { Vector3Int.right, Vector3Int.up , Vector3Int.forward} },
+        { Vector3.back, new Vector3Int[] { Vector3Int.right, Vector3Int.up , Vector3Int.zero} },
+    };
     /*
      * Custom array of all the directions to easily loop over
      */

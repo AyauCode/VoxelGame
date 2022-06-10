@@ -140,7 +140,8 @@ public class TerrainHandler : MonoBehaviour
 
             //Regenerate the chunk mesh
             //(passing in chunkCoord(an x,y,z index of the chunk), its world space position, the current noiseSettings, and its savedData)
-            //tc.GenerateChunk(tc.chunkCoord, new Vector3(tc.chunkCoord.x * chunkDimensions.x, tc.chunkCoord.y * chunkDimensions.y, tc.chunkCoord.z * chunkDimensions.z), savedData);
+            tc.PrepareChunk(tc.chunkCoord, tc.chunkWorldPos, savedData);
+            tc.GenerateChunk();
         }
     }
     /// <summary>
@@ -191,7 +192,8 @@ public class TerrainHandler : MonoBehaviour
 
             //Regenerate the chunk mesh
             //(passing in chunkCoord(an x,y,z index of the chunk), its world space position, the current noiseSettings, and its savedData)
-            //tc.GenerateChunk(tc.chunkCoord, new Vector3(tc.chunkCoord.x * chunkDimensions.x, tc.chunkCoord.y * chunkDimensions.y, tc.chunkCoord.z * chunkDimensions.z), savedData);
+            tc.PrepareChunk(tc.chunkCoord, tc.chunkWorldPos, savedData);
+            tc.GenerateChunk();
         }
     }
     /// <summary>

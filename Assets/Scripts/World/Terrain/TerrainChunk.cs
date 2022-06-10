@@ -100,6 +100,7 @@ public class TerrainChunk : MonoBehaviour
             chunkMesh.Clear();
             chunkMesh.vertices = chunkData.vertexArray;
             chunkMesh.triangles = chunkData.triangleArray;
+            chunkMesh.colors = chunkData.colorArray;
 
             chunkMesh.RecalculateNormals();
             UpdateMesh(chunkMesh);
@@ -146,7 +147,7 @@ public class TerrainChunk : MonoBehaviour
     {   
         ChunkData chunkData = (ChunkData)state;
         GenerateByteArray(chunkData);
-        GenerateMesh(chunkData);
+        GenerateMeshGreedyFace(chunkData);
     }
     /// <summary>
     /// Generate the byte values for a chunk.
@@ -171,18 +172,13 @@ public class TerrainChunk : MonoBehaviour
             chunkData.SetByteValue(index, val);
         });
     }
-    public static void GenerateMeshGreedy(object state)
-    {
-        ChunkData chunkData = (ChunkData)state;
-        chunkData.vertexArray = chunkData.vertices.ToArray();
-        chunkData.triangleArray = chunkData.triangles.ToArray();
-        chunkData.jobComplete = true;
-    }
-    public static void AddCube(Vector3 startPos, Vector3 endPos, List<Vector3> vertices, List<int> triangles)
+    static System.Random rand = new System.Random();
+    public static void AddCube(Vector3 startPos, Vector3 endPos, List<Vector3> vertices, List<int> triangles, List<Color> colors)
     {
         float width = endPos.x - startPos.x;
         float height = endPos.y - startPos.y;
         float length = endPos.z - startPos.z;
+        
         AddQuad(vertices, triangles, startPos, Vector3.right, width, Vector3.up, height, Vector3.back);
         AddQuad(vertices, triangles, startPos + new Vector3(0,height,0), Vector3.right, width, Vector3.forward, length, Vector3.up);
         AddQuad(vertices, triangles, startPos, Vector3.forward, length, Vector3.up, height, Vector3.left);
@@ -190,6 +186,216 @@ public class TerrainChunk : MonoBehaviour
         AddQuad(vertices, triangles, startPos + new Vector3(0,0,length), Vector3.right, width, Vector3.up, height, Vector3.forward);
         AddQuad(vertices, triangles, startPos, Vector3.right, width, Vector3.forward, length, Vector3.down);
         AddQuad(vertices, triangles, startPos + new Vector3(width,0,0), Vector3.forward, length, Vector3.up, height, Vector3.right);
+
+
+        Color vColor = new Color((float)rand.NextDouble(), (float)rand.NextDouble(),(float) rand.NextDouble(), 1);
+        int vertexCount = 24;
+        for(int i = 0; i < vertexCount; i++)
+        {
+            colors.Add(vColor);
+        }
+    }
+    public static void GenerateMeshGreedyFace(object state)
+    {
+        ChunkData chunkData = (ChunkData)state;
+        GenerateMesh(state);
+        foreach(Vector3 dir in CustomMath.directions)
+        {
+            HashSet<Vector3Int> visited = new HashSet<Vector3Int>();
+
+            List<Vector3Int> facesList = chunkData.faces[dir];
+            Vector3Int[] wlDir = CustomMath.intDirectionDictionary[dir];
+            foreach(Vector3Int intPos in facesList)
+            {
+                if(visited.Contains(intPos)) { continue; }
+                int width = 1, length = 1;
+                Vector3Int checkPos = intPos + wlDir[0];
+                while (WithinChunkBounds(checkPos, chunkData.chunkSize))
+                {
+                    if (!visited.Contains(checkPos) && facesList.Contains(checkPos))
+                    {
+                        width++;
+                        visited.Add(checkPos);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                    checkPos += wlDir[0];
+                }
+                checkPos = intPos + wlDir[1];
+                while(WithinChunkBounds(checkPos, chunkData.chunkSize))
+                {
+                    bool rowAllowed = true;
+
+                    int tempWidth = 0;
+                    while (tempWidth < width)
+                    {
+                        checkPos = intPos + wlDir[0] * tempWidth + wlDir[1] * length;
+                        if (!visited.Contains(checkPos) && facesList.Contains(checkPos))
+                        {
+                            
+                        }
+                        else
+                        {
+                            rowAllowed = false;
+                            break;
+                        }
+                        tempWidth++;
+                    }
+                    if (rowAllowed)
+                    {
+                        tempWidth = 0;
+                        while (tempWidth < width)
+                        {
+                            checkPos = intPos + wlDir[0] * tempWidth + wlDir[1] * length;
+                            visited.Add(checkPos);
+
+                            tempWidth++;
+                        }
+
+                        length++;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                    checkPos = intPos + wlDir[1] * length;
+                }
+                AddQuad(chunkData.vertices, chunkData.triangles, intPos, wlDir[0], width, wlDir[1], length, dir);
+                Color vColor = new Color((float)rand.NextDouble(), (float)rand.NextDouble(), (float)rand.NextDouble(), 1);
+                for(int i = 0; i < 4; i++)
+                {
+                    chunkData.colors.Add(vColor);
+                }
+                visited.Add(intPos);
+            }
+        }
+        chunkData.vertexArray = chunkData.vertices.ToArray();
+        chunkData.triangleArray = chunkData.triangles.ToArray();
+        chunkData.colorArray = chunkData.colors.ToArray();
+        chunkData.jobComplete = true;
+    }
+    public static bool WithinChunkBounds(Vector3 pos, Vector3 chunkSize)
+    {
+        return pos.x >= 0 && pos.x < chunkSize.x && pos.y >= 0 && pos.y < chunkSize.y && pos.z >= 0 && pos.z < chunkSize.z;
+    }
+    public static void GenerateMeshGreedy(object state)
+    {
+        ChunkData chunkData = (ChunkData)state;
+        HashSet<Vector3Int> visited = new HashSet<Vector3Int>();
+        Vector3 pos = Vector3.zero;
+        Vector3Int intPos = Vector3Int.zero;
+        for(int i = 0; i < chunkData.chunkSize.x; i++)
+        {
+            for(int j = 0; j < chunkData.chunkSize.y; j++)
+            {
+                for(int k = 0; k < chunkData.chunkSize.z; k++)
+                {
+                    int endX = i+1, endY = j+1, endZ = k+1;
+                    pos.Set(i, j, k);
+                    intPos.Set(i, j, k);
+                    
+                    if (visited.Contains(intPos) || chunkData.GetByteValue(intPos) == 0) { continue; }
+
+                    for(int dx = intPos.x+1; dx < chunkData.chunkSize.x; dx++)
+                    {
+                        Vector3Int checkPos = new Vector3Int(dx, j, k);
+                        if(!visited.Contains(checkPos) && chunkData.GetByteValue(checkPos) == 1)
+                        {
+                            endX = dx + 1;
+                            visited.Add(checkPos);
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                    for (int dy = intPos.y+1; dy < chunkData.chunkSize.y; dy++)
+                    {
+                        bool rowAllowed = true;
+                        for (int dx = intPos.x; dx < endX; dx++)
+                        {
+                            Vector3Int checkPos = new Vector3Int(dx, dy, k);
+                            if (!visited.Contains(checkPos) && chunkData.GetByteValue(checkPos) == 1)
+                            {
+
+                            }
+                            else
+                            {
+                                rowAllowed = false;
+                                break;
+                            }
+                        }
+                        if (rowAllowed)
+                        {
+                            endY = dy + 1;
+                            for (int dx = intPos.x; dx < endX; dx++)
+                            {
+                                Vector3Int checkPos = new Vector3Int(dx, dy, k);
+                                visited.Add(checkPos);
+                            }
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                    for(int dz = intPos.z + 1; dz < chunkData.chunkSize.z; dz++)
+                    {
+                        bool blockAllowed = true;
+                        for (int dy = intPos.y; dy < endY; dy++)
+                        {
+                            bool rowAllowed = true;
+                            for (int dx = intPos.x; dx < endX; dx++)
+                            {
+                                Vector3Int checkPos = new Vector3Int(dx, dy, dz);
+                                if (!visited.Contains(checkPos) && chunkData.GetByteValue(checkPos) == 1)
+                                {
+
+                                }
+                                else
+                                {
+                                    rowAllowed = false;
+                                    break;
+                                }
+                            }
+                            if (rowAllowed)
+                            {
+                            }
+                            else
+                            {
+                                blockAllowed = false;
+                                break;
+                            }
+                        }
+                        if (blockAllowed)
+                        {
+                            endZ = dz + 1;
+                            for(int dy = intPos.y; dy < endY; dy++)
+                            {
+                                for(int dx = intPos.x; dx < endX; dx++)
+                                {
+                                    Vector3Int checkPos = new Vector3Int(dx, dy, dz);
+                                    visited.Add(checkPos);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                    AddCube(pos, new Vector3(endX, endY, endZ), chunkData.vertices, chunkData.triangles, chunkData.colors);
+
+                    visited.Add(intPos);
+                }
+            }
+        }
+        chunkData.vertexArray = chunkData.vertices.ToArray();
+        chunkData.triangleArray = chunkData.triangles.ToArray();
+        chunkData.colorArray = chunkData.colors.ToArray();
+        chunkData.jobComplete = true;
     }
     /// <summary>
     /// Generate the chunk mesh from the generate byte values
@@ -213,15 +419,7 @@ public class TerrainChunk : MonoBehaviour
                     pos.Set(i, j, k);
                     intPos.Set(i, j, k);
                     //Check if saved block is actually an air block, if so continue to the next block
-                    if(chunkData.savedData != null && chunkData.savedData.HasByte(intPos) && chunkData.savedData.GetByte(intPos) == 1)
-                    {
-                        //Do Nothing
-                    }
-                    else if(chunkData.savedData != null && chunkData.savedData.HasByte(intPos) && chunkData.savedData.GetByte(intPos) == 0)
-                    {
-                        continue;
-                    }
-                    else if (chunkData.byteArr[GetByteArrayIndex(pos, chunkData.chunkSize)] == 0)
+                    if (chunkData.GetByteValue(intPos) == 0)
                     {
                         continue;
                     }
@@ -237,42 +435,40 @@ public class TerrainChunk : MonoBehaviour
 
                         
                         //If the calculated adjacent block is inside the bounds of this chunk continue into this if
-                        if (surrounding.x < chunkData.chunkSize.x && surrounding.x >= 0 && surrounding.y < chunkData.chunkSize.y && surrounding.y >= 0 && surrounding.z < chunkData.chunkSize.z && surrounding.z >= 0)
+                        if (WithinChunkBounds(surrounding, chunkData.chunkSize))
                         {
                             //If the block adjacent to the current block is air then construct a cube face in its direction
-                            if (chunkData.byteArr[GetByteArrayIndex(surrounding, chunkData.chunkSize)] == 0)
+                            if (chunkData.GetByteValue(surroundingInt) == 0)
                             {
                                 //Array of directions for constructing the cube face with quad normal = dir
-                                Vector3[] wlDir = CustomMath.directionDictionary[dir];
+                                Vector3Int[] wlDir = CustomMath.intDirectionDictionary[dir];
                                 //Add a quad to the current vertices and triangles of the chunk, with width and length relative to the quad normal
-                                AddQuad(chunkData.vertices, chunkData.triangles, pos + wlDir[2], wlDir[0], wlDir[1], dir);
-                            }
-                            //Else if the chunk has saved data at this adjacent block and its saved data is an air block construct a cube face in its direction
-                            else if((chunkData.savedData != null && chunkData.savedData.HasByte(surroundingInt) && chunkData.savedData.GetByte(surroundingInt) == 0))
-                            {
-                                //Array of directions for constructing the cube face with quad normal = dir
-                                Vector3[] wlDir = CustomMath.directionDictionary[dir];
-                                //Add a quad to the current vertices and triangles of the chunk, with width and length relative to the quad normal
-                                AddQuad(chunkData.vertices, chunkData.triangles, pos + wlDir[2], wlDir[0], wlDir[1], dir);
+                                //AddQuad(chunkData.vertices, chunkData.triangles, pos + wlDir[2], wlDir[0], wlDir[1], dir);
+                                chunkData.AddFace(dir, intPos + wlDir[2]);
                             }
                         }
                         //Else if the block is outside the current chunk bounds quickly generate the value the block would have in the next chunk
                         //Or if the chunk has saved data about the adjacent block outside the bounds and that block is air construct a face in its direction
                         //NOTE: the chunk saved data will contain information about blocks outside of the chunk bounds due to how saved information is added to the chunks
-                        else if(GenerateBlock(chunkData.chunkWorldPos + surrounding) == 0 || (chunkData.savedData != null && chunkData.savedData.HasByte(surroundingInt) && chunkData.savedData.GetByte(surroundingInt) == 0))
+                        else if(GenerateBlock(chunkData.chunkWorldPos + surrounding) == 0)
                         {
+                            if(chunkData.savedData != null && chunkData.savedData.HasByte(surroundingInt) && chunkData.savedData.GetByte(surroundingInt) == 1)
+                            {
+                                continue;
+                            }
                             //Array of directions for constructing the cube face with quad normal = dir
-                            Vector3[] wlDir = CustomMath.directionDictionary[dir];
+                            Vector3Int[] wlDir = CustomMath.intDirectionDictionary[dir];
                             //Add a quad to the current vertices and triangles of the chunk, with width and length relative to the quad normal
-                            AddQuad(chunkData.vertices, chunkData.triangles, pos + wlDir[2], wlDir[0], wlDir[1], dir);
+                            //AddQuad(chunkData.vertices, chunkData.triangles, pos + wlDir[2], wlDir[0], wlDir[1], dir);
+                            chunkData.AddFace(dir, intPos + wlDir[2]);
                         }
                     }
                 }
             }
         }
-        chunkData.vertexArray = chunkData.vertices.ToArray();
+        /*chunkData.vertexArray = chunkData.vertices.ToArray();
         chunkData.triangleArray = chunkData.triangles.ToArray();
-        chunkData.jobComplete = true;
+        chunkData.jobComplete = true;*/
     }
     /// <summary>
     /// Set the chunk mesh filter and collider to use the given mesh
@@ -474,8 +670,9 @@ public class TerrainChunk : MonoBehaviour
         //noiseVal *= Mathf.PerlinNoise(pos.x * settings.frequency / 2, pos.z * settings.frequency / 2) * 2;
         //return  Mathf.Max(0,noiseVal - settings.recede) * settings.strength;
         //float baseNoise = Mathf.PerlinNoise((pos.x + 1000f) / 60f, (pos.z + 1000f) / 60f);
-        float biomeNoise = 60 * Mathf.Clamp(Mathf.PerlinNoise((pos.x + 6000f) / 50f, (pos.z + 6000f) / 50f)*1.5f, 0.5f, 2f);
-        return biomeNoise;
+        //float biomeNoise = 60 * Mathf.Clamp(Mathf.PerlinNoise((pos.x + 6000f) / 50f, (pos.z + 6000f) / 50f)*1.5f, 0.5f, 2f);
+        float noiseValue = 20 * Mathf.PerlinNoise((pos.x + 1000) / 50f, (pos.z + 1000) / 50f);
+        return noiseValue;
     }
     //Container class for storing the chunk information (used to pass data between threads)
     //(Mesh vertices, triangles, arrays, world position, noise settings, saved data)
@@ -486,9 +683,11 @@ public class TerrainChunk : MonoBehaviour
         //List of triangle indices for the chunk mesh
         public List<int> triangles = new List<int>();
         public List<Color> colors = new List<Color>();
+        public Dictionary<Vector3, List<Vector3Int>> faces = new Dictionary<Vector3, List<Vector3Int>>(); 
 
         public Vector3[] vertexArray;
         public int[] triangleArray;
+        public Color[] colorArray;
 
         //3D chunk position in world space
         public Vector3 chunkWorldPos;
@@ -509,6 +708,15 @@ public class TerrainChunk : MonoBehaviour
             this.chunkSize = chunkSize;
             this.byteArr = new byte[byteArraySize];
             this.savedData = savedData;
+            foreach(Vector3 dir in CustomMath.directions)
+            {
+                List<Vector3Int> posList = new List<Vector3Int>();
+                faces.Add(dir, posList);
+            }
+        }
+        public void AddFace(Vector3 dir, Vector3Int pos)
+        {
+            this.faces[dir].Add(pos);
         }
         /// <summary>
         /// Get the byte value at the given byte array index
@@ -517,7 +725,21 @@ public class TerrainChunk : MonoBehaviour
         /// <returns>The byte value at index in the byte array</returns>
         public byte GetByteValue(int i)
         {
+            Vector3Int pos = Vector3Int.FloorToInt(GetPositionFromIndex(i, chunkSize));
+            if(savedData != null && savedData.HasByte(pos))
+            {
+                return savedData.GetByte(pos);
+            }
             return byteArr[i];
+        }
+        public byte GetByteValue(Vector3Int pos)
+        {
+            int index = GetByteArrayIndex(pos, chunkSize);
+            if (savedData != null && savedData.HasByte(pos))
+            {
+                return savedData.GetByte(pos);
+            }
+            return byteArr[index];
         }
         /// <summary>
         /// Set the byte value at the given byte array index to the given byte.
@@ -534,6 +756,11 @@ public class TerrainChunk : MonoBehaviour
         public void Reset()
         {
             jobComplete = false;
+            colors.Clear();
+            foreach(KeyValuePair<Vector3, List<Vector3Int>> entry in faces)
+            {
+                entry.Value.Clear();
+            }
             vertices.Clear();
             triangles.Clear();
         }

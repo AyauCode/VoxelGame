@@ -178,7 +178,7 @@ public class PlayerHandler : NetworkBehaviour
         RaycastHit hit;
         //Cast a ray from the player in the direction player is facing, if it hits specificially the terrain continue
         Ray screenRay = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
-        if (Physics.Raycast(screenRay, out hit, terrainLayer))
+        if (Physics.Raycast(screenRay, out hit, Mathf.Infinity, terrainLayer))
         {
             //Calculate a point inside the block you want to destroy
             //(since the ray hit will be on the outside of the block in order to destroy the right block we must move the hit point just a bit forward)
@@ -192,7 +192,7 @@ public class PlayerHandler : NetworkBehaviour
         RaycastHit hit;
         Ray screenRay = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
         //Cast a ray from the player in the direction player is facing, if it hits specificially the terrain continue
-        if (Physics.Raycast(screenRay, out hit, terrainLayer))
+        if (Physics.Raycast(screenRay, out hit, Mathf.Infinity, terrainLayer))
         {
             //Calculate a point slightly outside the block you want to place on
             //(since the ray hit will be on the outside of the block in order to place in the right we must move the hit point just a bit backwards)
