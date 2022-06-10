@@ -10,9 +10,9 @@ GameObject:
   m_Component:
   - component: {fileID: 5124953688566650321}
   - component: {fileID: 5124953688566650322}
-  - component: {fileID: 5124953688566650323}
   - component: {fileID: 4274665893649785409}
   - component: {fileID: 5124953688566650317}
+  - component: {fileID: 2146116019895696455}
   m_Layer: 6
   m_Name: TerrainChunk
   m_TagString: Terrain
@@ -77,14 +77,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!33 &5124953688566650323
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5124953688566650318}
-  m_Mesh: {fileID: 0}
 --- !u!64 &4274665893649785409
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -115,3 +107,11 @@ MonoBehaviour:
   chunkWorldPos: {x: 0, y: 0, z: 0}
   chunkSize: {x: 16, y: 16, z: 16}
   generated: 0
+--- !u!33 &2146116019895696455
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5124953688566650318}
+  m_Mesh: {fileID: 0}

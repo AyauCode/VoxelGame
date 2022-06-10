@@ -171,6 +171,26 @@ public class TerrainChunk : MonoBehaviour
             chunkData.SetByteValue(index, val);
         });
     }
+    public static void GenerateMeshGreedy(object state)
+    {
+        ChunkData chunkData = (ChunkData)state;
+        chunkData.vertexArray = chunkData.vertices.ToArray();
+        chunkData.triangleArray = chunkData.triangles.ToArray();
+        chunkData.jobComplete = true;
+    }
+    public static void AddCube(Vector3 startPos, Vector3 endPos, List<Vector3> vertices, List<int> triangles)
+    {
+        float width = endPos.x - startPos.x;
+        float height = endPos.y - startPos.y;
+        float length = endPos.z - startPos.z;
+        AddQuad(vertices, triangles, startPos, Vector3.right, width, Vector3.up, height, Vector3.back);
+        AddQuad(vertices, triangles, startPos + new Vector3(0,height,0), Vector3.right, width, Vector3.forward, length, Vector3.up);
+        AddQuad(vertices, triangles, startPos, Vector3.forward, length, Vector3.up, height, Vector3.left);
+
+        AddQuad(vertices, triangles, startPos + new Vector3(0,0,length), Vector3.right, width, Vector3.up, height, Vector3.forward);
+        AddQuad(vertices, triangles, startPos, Vector3.right, width, Vector3.forward, length, Vector3.down);
+        AddQuad(vertices, triangles, startPos + new Vector3(width,0,0), Vector3.forward, length, Vector3.up, height, Vector3.right);
+    }
     /// <summary>
     /// Generate the chunk mesh from the generate byte values
     /// </summary>
@@ -287,6 +307,46 @@ public class TerrainChunk : MonoBehaviour
         vBottomRight = pos + widthDir;
         vTopLeft = pos + lengthDir;
         vTopRight = pos + widthDir + lengthDir;
+
+        //If normal vector is left or forward flip the triangle to render on correct side (related to winding order)
+        int vIndex = vertices.Count;
+        if (normal == Vector3.left || normal == Vector3.forward || normal == Vector3.down)
+        {
+            //Add the triangle indices to the list in a counter-clockwise order
+            triangles.Add(vIndex);
+            triangles.Add(vIndex + 1);
+            triangles.Add(vIndex + 2);
+
+            triangles.Add(vIndex + 2);
+            triangles.Add(vIndex + 1);
+            triangles.Add(vIndex + 3);
+        }
+        else
+        {
+            //Add the triangle indices to the list in a clockwise order
+            triangles.Add(vIndex);
+            triangles.Add(vIndex + 2);
+            triangles.Add(vIndex + 1);
+
+            triangles.Add(vIndex + 2);
+            triangles.Add(vIndex + 3);
+            triangles.Add(vIndex + 1);
+        }
+
+        //Add the calculated vertices to the vertex list
+        vertices.Add(vBottomLeft);
+        vertices.Add(vBottomRight);
+        vertices.Add(vTopLeft);
+        vertices.Add(vTopRight);
+    }
+    public static void AddQuad(List<Vector3> vertices, List<int> triangles, Vector3 pos, Vector3 widthDir, float width, Vector3 lengthDir, float length, Vector3 normal)
+    {
+        //Calculate top and bottom left, right vertex positions based on given direction vectors
+        Vector3 vBottomLeft = Vector3.zero, vBottomRight = Vector3.zero, vTopLeft = Vector3.zero, vTopRight = Vector3.zero;
+        vBottomLeft = pos;
+        vBottomRight = pos + widthDir * width;
+        vTopLeft = pos + lengthDir * length;
+        vTopRight = pos + widthDir*width + lengthDir*length;
 
         //If normal vector is left or forward flip the triangle to render on correct side (related to winding order)
         int vIndex = vertices.Count;

@@ -5955,9 +5955,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   chunkPrefab: {fileID: 5124953688566650318, guid: 40041cb9fae5ed54db65af5628d9a069, type: 3}
   viewer: {fileID: 0}
-  viewDist: {x: 8, y: 6, z: 8}
+  viewDist: {x: 6, y: 4, z: 6}
   chunkDimensions: {x: 16, y: 16, z: 16}
-  chunkQueueTime: 0.0001
+  chunkQueueTime: 0
   displayChunkPos: {x: 0, y: -64, z: 0}
   displayChunkSize: {x: 64, y: 64, z: 64}
   chunksToRegenerate: []
