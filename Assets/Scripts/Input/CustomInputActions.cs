@@ -107,6 +107,24 @@ public partial class @CustomInputActions : IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": true
+                },
+                {
+                    ""name"": ""EPress"",
+                    ""type"": ""Button"",
+                    ""id"": ""e95ef099-8214-4539-9f1d-658685d11d3c"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": true
+                },
+                {
+                    ""name"": ""QPress"",
+                    ""type"": ""Button"",
+                    ""id"": ""fab2232f-a7b2-4faa-a6bf-94e3f025d2cb"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -274,6 +292,28 @@ public partial class @CustomInputActions : IInputActionCollection2, IDisposable
                     ""action"": ""RPress"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""3e7f3bc6-949b-4a2d-a567-4795c4228153"",
+                    ""path"": ""<Keyboard>/e"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""EPress"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""3bd1feca-c7ba-402d-ab0f-259f5db7a6fb"",
+                    ""path"": ""<Keyboard>/q"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""QPress"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -291,6 +331,8 @@ public partial class @CustomInputActions : IInputActionCollection2, IDisposable
         m_User_MouseRightClick = m_User.FindAction("MouseRightClick", throwIfNotFound: true);
         m_User_MouseMiddleClick = m_User.FindAction("MouseMiddleClick", throwIfNotFound: true);
         m_User_RPress = m_User.FindAction("RPress", throwIfNotFound: true);
+        m_User_EPress = m_User.FindAction("EPress", throwIfNotFound: true);
+        m_User_QPress = m_User.FindAction("QPress", throwIfNotFound: true);
     }
 
     public void Dispose()
@@ -359,6 +401,8 @@ public partial class @CustomInputActions : IInputActionCollection2, IDisposable
     private readonly InputAction m_User_MouseRightClick;
     private readonly InputAction m_User_MouseMiddleClick;
     private readonly InputAction m_User_RPress;
+    private readonly InputAction m_User_EPress;
+    private readonly InputAction m_User_QPress;
     public struct UserActions
     {
         private @CustomInputActions m_Wrapper;
@@ -372,6 +416,8 @@ public partial class @CustomInputActions : IInputActionCollection2, IDisposable
         public InputAction @MouseRightClick => m_Wrapper.m_User_MouseRightClick;
         public InputAction @MouseMiddleClick => m_Wrapper.m_User_MouseMiddleClick;
         public InputAction @RPress => m_Wrapper.m_User_RPress;
+        public InputAction @EPress => m_Wrapper.m_User_EPress;
+        public InputAction @QPress => m_Wrapper.m_User_QPress;
         public InputActionMap Get() { return m_Wrapper.m_User; }
         public void Enable() { Get().Enable(); }
         public void Disable() { Get().Disable(); }
@@ -408,6 +454,12 @@ public partial class @CustomInputActions : IInputActionCollection2, IDisposable
                 @RPress.started -= m_Wrapper.m_UserActionsCallbackInterface.OnRPress;
                 @RPress.performed -= m_Wrapper.m_UserActionsCallbackInterface.OnRPress;
                 @RPress.canceled -= m_Wrapper.m_UserActionsCallbackInterface.OnRPress;
+                @EPress.started -= m_Wrapper.m_UserActionsCallbackInterface.OnEPress;
+                @EPress.performed -= m_Wrapper.m_UserActionsCallbackInterface.OnEPress;
+                @EPress.canceled -= m_Wrapper.m_UserActionsCallbackInterface.OnEPress;
+                @QPress.started -= m_Wrapper.m_UserActionsCallbackInterface.OnQPress;
+                @QPress.performed -= m_Wrapper.m_UserActionsCallbackInterface.OnQPress;
+                @QPress.canceled -= m_Wrapper.m_UserActionsCallbackInterface.OnQPress;
             }
             m_Wrapper.m_UserActionsCallbackInterface = instance;
             if (instance != null)
@@ -439,6 +491,12 @@ public partial class @CustomInputActions : IInputActionCollection2, IDisposable
                 @RPress.started += instance.OnRPress;
                 @RPress.performed += instance.OnRPress;
                 @RPress.canceled += instance.OnRPress;
+                @EPress.started += instance.OnEPress;
+                @EPress.performed += instance.OnEPress;
+                @EPress.canceled += instance.OnEPress;
+                @QPress.started += instance.OnQPress;
+                @QPress.performed += instance.OnQPress;
+                @QPress.canceled += instance.OnQPress;
             }
         }
     }
@@ -454,5 +512,7 @@ public partial class @CustomInputActions : IInputActionCollection2, IDisposable
         void OnMouseRightClick(InputAction.CallbackContext context);
         void OnMouseMiddleClick(InputAction.CallbackContext context);
         void OnRPress(InputAction.CallbackContext context);
+        void OnEPress(InputAction.CallbackContext context);
+        void OnQPress(InputAction.CallbackContext context);
     }
 }

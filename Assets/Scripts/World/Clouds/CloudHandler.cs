@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class CloudHandler : MonoBehaviour
 {
+    public static CloudHandler instance;
     /*
      * Code obtained from: https://www.youtube.com/watch?v=LLUUIAKFgWg
      */
@@ -15,11 +16,19 @@ public class CloudHandler : MonoBehaviour
 
     public int layer;
     public Camera gameCamera;
+    public Transform viewer;
     public Light worldLight;
     public Matrix4x4 matrix;
     public bool castShadows = true;
     public bool lockToCameraHorizontal = true;
-
+    private void Start()
+    {
+        instance = this;
+    }
+    public void Init(Transform viewer)
+    {
+        this.viewer = viewer;
+    }
     void Update()
     {
         /*
@@ -27,7 +36,7 @@ public class CloudHandler : MonoBehaviour
          */
         if (lockToCameraHorizontal)
         {
-            this.transform.position = new Vector3(gameCamera.transform.position.x, this.transform.position.y, gameCamera.transform.position.z);
+            this.transform.position = new Vector3(viewer.position.x, this.transform.position.y, viewer.position.z);
         }
         /*
          * Pass the midpoint of the cloud volumes and cloud quad step size to the shader

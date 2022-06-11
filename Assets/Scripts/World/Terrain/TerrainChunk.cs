@@ -210,7 +210,7 @@ public class TerrainChunk : MonoBehaviour
                 if(visited.Contains(intPos)) { continue; }
                 int width = 1, length = 1;
                 Vector3Int checkPos = intPos + wlDir[0];
-                while (WithinChunkBounds(checkPos, chunkData.chunkSize))
+                while (WithinChunkBoundsPlusOne(checkPos, chunkData.chunkSize))
                 {
                     if (!visited.Contains(checkPos) && facesList.Contains(checkPos))
                     {
@@ -224,7 +224,7 @@ public class TerrainChunk : MonoBehaviour
                     checkPos += wlDir[0];
                 }
                 checkPos = intPos + wlDir[1];
-                while(WithinChunkBounds(checkPos, chunkData.chunkSize))
+                while(WithinChunkBoundsPlusOne(checkPos, chunkData.chunkSize))
                 {
                     bool rowAllowed = true;
 
@@ -279,6 +279,10 @@ public class TerrainChunk : MonoBehaviour
     public static bool WithinChunkBounds(Vector3 pos, Vector3 chunkSize)
     {
         return pos.x >= 0 && pos.x < chunkSize.x && pos.y >= 0 && pos.y < chunkSize.y && pos.z >= 0 && pos.z < chunkSize.z;
+    }
+    public static bool WithinChunkBoundsPlusOne(Vector3 pos, Vector3 chunkSize)
+    {
+        return pos.x >= -1 && pos.x < chunkSize.x+1 && pos.y >= -1 && pos.y < chunkSize.y+1 && pos.z >= -1 && pos.z < chunkSize.z+1;
     }
     /// <summary>
     /// Generate the chunk mesh from the generate byte values

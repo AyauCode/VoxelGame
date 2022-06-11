@@ -18,6 +18,6 @@ public class InputManager : MonoBehaviour
     {
         inputScheme = new CustomInputActions();
         playerHandler.Init(inputScheme.User.Move, inputScheme.User.Sprint, inputScheme.User.Mouse, inputScheme.User.Jump, inputScheme.User.Escape, inputScheme.User.MouseLeftClick, inputScheme.User.MouseRightClick, inputScheme.User.MouseMiddleClick, inputScheme.User.RPress);
-        cmLook.Init(inputScheme.User.Mouse, inputScheme.User.MouseMiddleClick);
+        cmLook.Init(inputScheme.User.QPress, inputScheme.User.EPress);
     }
 }

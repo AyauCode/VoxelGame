@@ -6,49 +6,56 @@ using UnityEngine.InputSystem;
 
 public class CMButtonDownLook : MonoBehaviour
 {
-    InputAction mouseAction, buttonPress;
-    Vector2 mouseDelta;
-    bool buttonDown;
+    InputAction qPress, ePress;
+    bool eDown, qDown;
     void Start()
     {
         CinemachineCore.GetInputAxis = GetAxisCustom;
     }
-    public void Init(InputAction mouseAction, InputAction buttonPress)
+    public void Init(InputAction qPress, InputAction ePress)
     {
-        this.mouseAction = mouseAction;
-        this.mouseAction.Enable();
-        this.buttonPress = buttonPress;
-        this.buttonPress.Enable();
+        this.qPress = qPress;
+        this.ePress = ePress;
+        this.ePress.Enable();
+        this.qPress.Enable();
 
-        this.mouseAction.performed += OnMouseMove;
-        this.buttonPress.performed += ButtonPressDown;
-        this.buttonPress.canceled += ButtonPressUp;
+        this.qPress.performed += QPressDown;
+        this.qPress.canceled += QPressUp;
+
+        this.ePress.performed += EPressDown;
+        this.ePress.canceled += EPressUp;
     }
+    float lerpSpeed = 0.125f;
+    float dir;
     public float GetAxisCustom(string axisName)
     {
         if (axisName == "MyLook")
         {
-            if (buttonDown)
+            if (eDown)
             {
-                return mouseDelta.x;
+                return -1;
             }
-            else
+            if (qDown)
             {
-                return 0;
+                return 1;
             }
         }
         return 0;
     }
-    public void OnMouseMove(InputAction.CallbackContext context)
+    public void QPressDown(InputAction.CallbackContext context)
     {
-        mouseDelta = context.ReadValue<Vector2>();
+        qDown = true;
     }
-    public void ButtonPressDown(InputAction.CallbackContext context)
+    public void QPressUp(InputAction.CallbackContext context)
     {
-        buttonDown = true;
+        qDown = false;
     }
-    public void ButtonPressUp(InputAction.CallbackContext context)
+    public void EPressDown(InputAction.CallbackContext context)
     {
-        buttonDown = false;
+        eDown = true;
+    }
+    public void EPressUp(InputAction.CallbackContext context)
+    {
+        eDown = false;
     }
 }
