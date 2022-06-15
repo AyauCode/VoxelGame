@@ -31,7 +31,7 @@ public class NoiseEditor : Editor
             }
             System.DateTime epochStart = new System.DateTime(1970, 1, 1, 0, 0, 0, System.DateTimeKind.Utc);
 
-            chunkData = new TerrainChunk.ChunkData(terrainHandler.displayChunkPos, terrainHandler.displayChunkSize, terrainHandler.displayChunkSize.x * terrainHandler.displayChunkSize.y * terrainHandler.displayChunkSize.z, null);
+            chunkData = new TerrainChunk.ChunkData(Vector3Int.zero, terrainHandler.displayChunkPos, terrainHandler.displayChunkSize, terrainHandler.displayChunkSize.x * terrainHandler.displayChunkSize.y * terrainHandler.displayChunkSize.z, null);
 
             double startTime = (System.DateTime.UtcNow - epochStart).TotalMilliseconds;
 
@@ -44,7 +44,6 @@ public class NoiseEditor : Editor
             Mesh chunkMesh = new Mesh();
             chunkMesh.vertices = chunkData.vertexArray;
             chunkMesh.triangles = chunkData.triangleArray;
-            chunkMesh.colors = chunkData.colorArray;
             chunkMesh.RecalculateNormals();
 
             meshPreview = new MeshPreview(chunkMesh);

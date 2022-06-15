@@ -171,7 +171,7 @@ MonoBehaviour:
     ModeOverride: 0
     LensShift: {x: 0, y: 0}
     GateFit: 2
-    m_SensorSize: {x: 1.920354, y: 1}
+    m_SensorSize: {x: 1.6551725, y: 1}
   m_Transitions:
     m_BlendHint: 0
     m_InheritPosition: 0
@@ -6106,8 +6106,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   chunkPrefab: {fileID: 5124953688566650318, guid: 40041cb9fae5ed54db65af5628d9a069, type: 3}
   viewer: {fileID: 0}
-  viewDist: {x: 8, y: 6, z: 8}
-  chunkDimensions: {x: 16, y: 16, z: 16}
+  viewDist: {x: 6, y: 6, z: 6}
+  chunkDimensions: {x: 32, y: 32, z: 32}
   chunkQueueTime: 0
   displayChunkPos: {x: 0, y: -64, z: 0}
   displayChunkSize: {x: 64, y: 64, z: 64}

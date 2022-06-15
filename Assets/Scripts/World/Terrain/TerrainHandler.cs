@@ -47,11 +47,15 @@ public class TerrainHandler : MonoBehaviour
 
     Thread chunkGenerateThread;
 
+    public static ConcurrentQueue<Vector3Int> meshQueue = new ConcurrentQueue<Vector3Int>();
+    static ConcurrentQueue<TerrainChunk> generateQueue = new ConcurrentQueue<TerrainChunk>();
+
     public void Awake()
     {
         instance = this;
         chunkGenerateThread = new Thread(GenerateChunks);
         chunkGenerateThread.Start();
+        TerrainChunk.InitFaces();
     }
     public void Init(Transform player)
     {
@@ -219,15 +223,23 @@ public class TerrainHandler : MonoBehaviour
 
         return new NoiseSettings(noise);
     }
+    Vector3Int queueChunk;
     private void Update()
     {
         //If we have a player transform
         if (viewer != null)
         {
+            if (meshQueue.TryDequeue(out queueChunk))
+            {
+                if (chunks.ContainsKey(queueChunk))
+                {
+                    chunks[queueChunk].FinishChunkGeneration();
+                }
+            }
             //Update the terrain
             //(i.e. add/remove chunks to be loaded based on the viewer position)
             UpdateTerrain();
-
+            
             /*Loop over the current chunks that need regenerating
              *If the chunk has finished generating its mesh, remove it from the list
              *NOTE: This is done after updating the terrain to make sure there is no issues with accessing lists while modifying them
@@ -279,9 +291,7 @@ public class TerrainHandler : MonoBehaviour
                     if (chunks.ContainsKey(chunkCoord))
                     {
                         TerrainChunk terrainChunk = chunks[chunkCoord];
-                        //Tell the chunk to check if its mesh generation job is complete
-                        //This is to do with multithreading (the chunk must wait to update until the mesh has been generated)
-                        terrainChunk.WaitForByteArray();
+
                         removeKeys.Remove(chunkCoord);
                     }
                     else
@@ -308,11 +318,6 @@ public class TerrainHandler : MonoBehaviour
                         terrainChunk.chunkCoord = chunkCoord;
                         terrainChunk.chunkSize = chunkDimensions;
 
-                        //If the current chunk generation queue does not have this chunk waiting to generated add the chunk to the queue
-                        /*if (!chunkQueue.Contains(terrainChunk))
-                        {
-                            chunkQueue.Enqueue(terrainChunk);
-                        }*/
                         chunkWorldPos.Set(chunkCoord.x * chunkDimensions.x, chunkCoord.y * chunkDimensions.y, chunkCoord.z * chunkDimensions.z);
                         
                         terrainChunk.PrepareChunk(chunkCoord, chunkWorldPos, GetSavedData(chunkCoord));
@@ -338,10 +343,7 @@ public class TerrainHandler : MonoBehaviour
             chunks.Remove(key);
             removeKeys.RemoveAt(i);
         }
-        //Iterate over the chunks waiting to begin generation
-        //DoChunkQueue();
     }
-    static ConcurrentQueue<TerrainChunk> generateQueue = new ConcurrentQueue<TerrainChunk>();
     public static void GenerateChunks()
     {
         while (true)
