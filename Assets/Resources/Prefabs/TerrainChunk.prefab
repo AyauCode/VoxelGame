@@ -9,10 +9,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5124953688566650321}
-  - component: {fileID: 5124953688566650322}
-  - component: {fileID: 4274665893649785409}
   - component: {fileID: 5124953688566650317}
-  - component: {fileID: 2146116019895696455}
+  - component: {fileID: 2680363614044669672}
+  - component: {fileID: 2415339880141891381}
+  - component: {fileID: 3021469312996417140}
   m_Layer: 6
   m_Name: TerrainChunk
   m_TagString: Terrain
@@ -35,7 +35,24 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!23 &5124953688566650322
+--- !u!114 &5124953688566650317
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5124953688566650318}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bfe7a195fda95b448c502acc697bf70, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  chunkCoord: {x: 0, y: 0, z: 0}
+  chunkWorldPos: {x: 0, y: 0, z: 0}
+  chunkSize: {x: 16, y: 16, z: 16}
+  terrainMat: {fileID: 2100000, guid: 07648ba37fc6e904e9c3354da5399cd4, type: 2}
+  generated: 0
+--- !u!23 &2680363614044669672
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -77,7 +94,15 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &4274665893649785409
+--- !u!33 &2415339880141891381
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5124953688566650318}
+  m_Mesh: {fileID: 0}
+--- !u!64 &3021469312996417140
 MeshCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -90,28 +115,4 @@ MeshCollider:
   serializedVersion: 4
   m_Convex: 0
   m_CookingOptions: 0
-  m_Mesh: {fileID: 0}
---- !u!114 &5124953688566650317
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5124953688566650318}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8bfe7a195fda95b448c502acc697bf70, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  chunkCoord: {x: 0, y: 0, z: 0}
-  chunkWorldPos: {x: 0, y: 0, z: 0}
-  chunkSize: {x: 16, y: 16, z: 16}
-  generated: 0
---- !u!33 &2146116019895696455
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5124953688566650318}
   m_Mesh: {fileID: 0}

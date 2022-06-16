@@ -91,7 +91,7 @@ public class PlayerHandler : NetworkBehaviour
         //Cast a sphere around a given position, with radius, checking to see if the player is touching the terrain
         //(The groundCheck transform is located at the bottom of the player model)
         isGrounded = Physics.CheckSphere(groundCheck.position, groundCheckRadius, terrainLayer);
-        if (!escapeToggle)
+        if (!escapeToggle && TerrainHandler.meshQueue.Count == 0)
         {
             //If we are touching the ground and moving downwards stop our movement down
             if (isGrounded && velocity.y < 0)

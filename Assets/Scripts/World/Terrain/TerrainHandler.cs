@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Threading;
 using UnityEngine.Profiling;
+using TMPro;
 using System.Collections.Concurrent;
 
 public class TerrainHandler : MonoBehaviour
@@ -17,7 +18,7 @@ public class TerrainHandler : MonoBehaviour
     /*
      * Dictionary of currently loaded chunks
      */
-    public Dictionary<Vector3Int, TerrainChunk> chunks = new Dictionary<Vector3Int, TerrainChunk>();
+    public static Dictionary<Vector3Int, TerrainChunk> chunks = new Dictionary<Vector3Int, TerrainChunk>();
     /*
      * Dictionary of chunkData (this is used to saved placed and destroyed blocks)
      * (So when the chunk is unloaded and the player returns the edits to the terrain will still be there)
@@ -45,6 +46,9 @@ public class TerrainHandler : MonoBehaviour
     public Vector3 displayChunkPos;
     public Vector3Int displayChunkSize;
 
+    [Header("DEBUG")]
+    public TextMeshProUGUI textMesh;
+
     Thread chunkGenerateThread;
 
     public static ConcurrentQueue<Vector3Int> meshQueue = new ConcurrentQueue<Vector3Int>();
@@ -55,8 +59,12 @@ public class TerrainHandler : MonoBehaviour
         instance = this;
         chunkGenerateThread = new Thread(GenerateChunks);
         chunkGenerateThread.Start();
+
         TerrainChunk.InitFaces();
     }
+    public static int completedChunkCount = 0;
+    public static int completedMeshCount = 0;
+    public int maxChunks;
     public void Init(Transform player)
     {
         this.viewer = player;
@@ -71,8 +79,10 @@ public class TerrainHandler : MonoBehaviour
             chunkObject.GetComponent<TerrainChunk>().InstantiateChunkData(chunkDimensions.x * chunkDimensions.y * chunkDimensions.z, settings);
             chunkPool.Enqueue(chunkObject);
         }
+        maxChunks = viewDist.x * 2 * viewDist.y * 2 * viewDist.z * 2;
         //Run the chunk generaiton loop once on startup to make sure chunks are loaded in when the player spawns
         UpdateTerrain();
+
     }
     /// <summary>
     /// Get a loaded terrain chunk containing the 3D point
@@ -224,22 +234,34 @@ public class TerrainHandler : MonoBehaviour
         return new NoiseSettings(noise);
     }
     Vector3Int queueChunk;
+    int maxMesh;
+    bool first = true;
     private void Update()
     {
         //If we have a player transform
         if (viewer != null)
         {
-            if (meshQueue.TryDequeue(out queueChunk))
+            textMesh.text = "Noise: " + completedChunkCount + "/" + maxChunks + "\nMesh: " + completedMeshCount + "/" + maxMesh;
+            if (generateQueue.Count == 0 && meshQueue.TryDequeue(out queueChunk))
+            {
+                if (first) { maxMesh = meshQueue.Count + 1; first = false; }
+                if (chunks.ContainsKey(queueChunk))
+                {
+                    chunks[queueChunk].FinishMesh();
+                    completedMeshCount++;
+                }
+            }
+            /*if (meshQueue.TryDequeue(out queueChunk))
             {
                 if (chunks.ContainsKey(queueChunk))
                 {
-                    chunks[queueChunk].FinishChunkGeneration();
+                    chunks[queueChunk].FinishMesh();
                 }
-            }
+            }*/
             //Update the terrain
             //(i.e. add/remove chunks to be loaded based on the viewer position)
-            UpdateTerrain();
-            
+            //UpdateTerrain();
+
             /*Loop over the current chunks that need regenerating
              *If the chunk has finished generating its mesh, remove it from the list
              *NOTE: This is done after updating the terrain to make sure there is no issues with accessing lists while modifying them
@@ -291,7 +313,7 @@ public class TerrainHandler : MonoBehaviour
                     if (chunks.ContainsKey(chunkCoord))
                     {
                         TerrainChunk terrainChunk = chunks[chunkCoord];
-
+                        //terrainChunk.WaitForByteArray();
                         removeKeys.Remove(chunkCoord);
                     }
                     else
@@ -351,6 +373,7 @@ public class TerrainHandler : MonoBehaviour
             if(generateQueue.TryDequeue(out TerrainChunk chunk))
             {
                 chunk.GenerateChunk();
+                completedChunkCount++;
             }
         }
     }

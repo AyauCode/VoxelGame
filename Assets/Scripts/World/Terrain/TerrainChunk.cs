@@ -16,6 +16,7 @@ public class TerrainChunk : MonoBehaviour
     //Chunk world scale
     public Vector3Int chunkSize;
 
+    public Material terrainMat;
     //Mesh components
     MeshRenderer meshRenderer;
     MeshFilter meshFilter;
@@ -31,6 +32,7 @@ public class TerrainChunk : MonoBehaviour
 
     static List<Vector3> vertices = new List<Vector3>();
     static List<int> triangles = new List<int>();
+    static List<Color> colors = new List<Color>();
     static Dictionary<Vector3, List<Vector3Int>> faces = new Dictionary<Vector3, List<Vector3Int>>();
     public static void InitFaces()
     {
@@ -103,11 +105,12 @@ public class TerrainChunk : MonoBehaviour
             return outByte;
         }
     }
-    public void FinishChunkGeneration()
+    public void FinishMesh()
     {
         chunkMesh.Clear();
         chunkMesh.vertices = chunkData.vertexArray;
         chunkMesh.triangles = chunkData.triangleArray;
+        chunkMesh.colors = chunkData.colorArray;
 
         chunkMesh.RecalculateNormals();
         UpdateMesh(chunkMesh);
@@ -154,12 +157,15 @@ public class TerrainChunk : MonoBehaviour
     {
         vertices.Clear();
         triangles.Clear();
+        colors.Clear();
         foreach (Vector3 dir in CustomMath.directions)
         {
             faces[dir].Clear();
         }
         ChunkData chunkData = (ChunkData)state;
         GenerateByteArray(chunkData);
+
+        if (chunkData.empty) { return; }
         GenerateMeshGreedyFace(chunkData);
         TerrainHandler.meshQueue.Enqueue(chunkData.chunkCoord);
     }
@@ -172,7 +178,11 @@ public class TerrainChunk : MonoBehaviour
     {
         //Get the chunk data from the worker argument passed on the method call.
         ChunkData chunkData = (ChunkData)state;
-
+        chunkData.LOD = 1;
+        if (Mathf.Abs(chunkData.chunkCoord.x) >= 4 && Mathf.Abs(chunkData.chunkCoord.z) >= 4)
+        {
+            chunkData.LOD = 3;
+        }
         //Loop over all local positions (in the x,y, and z directions)
         Vector3 pos = Vector3.zero;
         int blockCount = chunkData.byteArr.Length;
@@ -182,7 +192,7 @@ public class TerrainChunk : MonoBehaviour
             Vector3 pos = GetPositionFromIndex(index, chunkData.chunkSize);
             //Generate the byte value at the world space position of the block, with current noise settings
             //Set the byte value at the index, to the generated value
-            byte val = GenerateBlock(chunkData.chunkWorldPos + pos);
+            byte val = GenerateBlock((chunkData.chunkWorldPos + pos) / chunkData.LOD);
             chunkData.SetByteValue(index, val);
         });
     }
@@ -254,12 +264,26 @@ public class TerrainChunk : MonoBehaviour
                     checkPos = intPos + wlDir[1] * length;
                 }
                 AddQuad(vertices, triangles, intPos, wlDir[0], width, wlDir[1], length, dir);
-
+                if(chunkData.LOD != 1)
+                {
+                    for (int c = 0; c < 4; c++)
+                    {
+                        colors.Add(Color.red);
+                    }
+                }
+                else
+                {
+                    for(int c = 0; c < 4; c++)
+                    {
+                        colors.Add(Color.green);
+                    }
+                }
                 visited.Add(intPos);
             }
         }
         chunkData.vertexArray = vertices.ToArray();
         chunkData.triangleArray = triangles.ToArray();
+        chunkData.colorArray = colors.ToArray();
         chunkData.jobComplete = true;
     }
     public static bool WithinChunkBounds(Vector3 pos, Vector3 chunkSize)
@@ -550,8 +574,11 @@ public class TerrainChunk : MonoBehaviour
     //(Mesh vertices, triangles, arrays, world position, noise settings, saved data)
     public class ChunkData
     {
+        public int LOD;
+        public bool empty = true;
         public Vector3[] vertexArray;
         public int[] triangleArray;
+        public Color[] colorArray;
 
         //3D chunk position relative to other chunks
         public Vector3Int chunkCoord;
@@ -616,6 +643,10 @@ public class TerrainChunk : MonoBehaviour
         public void SetByteValue(int i, byte b)
         {
             this.byteArr[i] = b;
+            if(b != 0)
+            {
+                empty = false;
+            }
         }
         /// <summary>
         /// Resets the chunk data to default values
