@@ -263,10 +263,10 @@ public class TerrainHandler : MonoBehaviour
             //UpdateTerrain();
 
             /*Loop over the current chunks that need regenerating
-             *If the chunk has finished generating its mesh, remove it from the list
-             *NOTE: This is done after updating the terrain to make sure there is no issues with accessing lists while modifying them
-             *(i.e. all chunk load/unload calculations should be settled by this point)
-             */
+            *If the chunk has finished generating its mesh, remove it from the list
+            *NOTE: This is done after updating the terrain to make sure there is no issues with accessing lists while modifying them
+            *(i.e. all chunk load/unload calculations should be settled by this point)
+            */
             for (int i = chunksToRegenerate.Count - 1; i >= 0; i--)
             {
                 if (chunksToRegenerate[i].generated == true)

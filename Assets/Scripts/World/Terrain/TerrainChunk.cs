@@ -162,6 +162,7 @@ public class TerrainChunk : MonoBehaviour
         {
             faces[dir].Clear();
         }
+
         ChunkData chunkData = (ChunkData)state;
         GenerateByteArray(chunkData);
 
@@ -178,11 +179,6 @@ public class TerrainChunk : MonoBehaviour
     {
         //Get the chunk data from the worker argument passed on the method call.
         ChunkData chunkData = (ChunkData)state;
-        chunkData.LOD = 1;
-        if (Mathf.Abs(chunkData.chunkCoord.x) >= 4 && Mathf.Abs(chunkData.chunkCoord.z) >= 4)
-        {
-            chunkData.LOD = 3;
-        }
         //Loop over all local positions (in the x,y, and z directions)
         Vector3 pos = Vector3.zero;
         int blockCount = chunkData.byteArr.Length;
@@ -192,7 +188,7 @@ public class TerrainChunk : MonoBehaviour
             Vector3 pos = GetPositionFromIndex(index, chunkData.chunkSize);
             //Generate the byte value at the world space position of the block, with current noise settings
             //Set the byte value at the index, to the generated value
-            byte val = GenerateBlock((chunkData.chunkWorldPos + pos) / chunkData.LOD);
+            byte val = GenerateBlock(chunkData.chunkWorldPos + pos);
             chunkData.SetByteValue(index, val);
         });
     }
@@ -561,13 +557,13 @@ public class TerrainChunk : MonoBehaviour
         //noiseVal *= Mathf.PerlinNoise(pos.x * settings.frequency / 2, pos.z * settings.frequency / 2) * 2;
         //return  Mathf.Max(0,noiseVal - settings.recede) * settings.strength;
         //float baseNoise = Mathf.PerlinNoise((pos.x + 1000f) / 60f, (pos.z + 1000f) / 60f);
-        float perlin = Mathf.PerlinNoise((pos.x + 6000f) / 50f, (pos.z + 6000f) / 50f) * 2 - 1;
-        perlin *= Mathf.PerlinNoise((pos.x + 1000f) / 50f, (pos.z + 1000f) / 50f);
+        float perlin = Mathf.PerlinNoise((pos.x + 6000f) / 75f, (pos.z + 6000f) / 75f) * 2 - 1;
+        perlin += Mathf.PerlinNoise((pos.x + 1000f) / 35f, (pos.z + 1000f) / 35f) *2 - 1;
         if(perlin < 0)
         {
             perlin = 0;
         }
-        float biomeNoise = 75 * perlin;
+        float biomeNoise = 25 * perlin;
         return biomeNoise;
     }
     //Container class for storing the chunk information (used to pass data between threads)
