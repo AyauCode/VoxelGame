@@ -47,6 +47,7 @@ public class PlayerHandler : NetworkBehaviour
 
         TerrainHandler.instance.Init(this.transform);
         InputManager.instance.Init(this);
+
         //CloudHandler.instance.Init(this.transform);
     }
     public void Init(InputAction moveAction, InputAction sprintAction, InputAction mouseAction, InputAction jumpAction, InputAction escapeAction, InputAction mouseLeftClickAction, InputAction mouseRightClickAction, InputAction mouseMiddleClickAction, InputAction waterThrowAction)

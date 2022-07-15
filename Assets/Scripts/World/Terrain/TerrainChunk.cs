@@ -149,6 +149,26 @@ public class TerrainChunk : MonoBehaviour
         chunkData.chunkSize = chunkSize;
         chunkData.savedData = savedData;
     }
+    public void GenerateChunkTest()
+    {
+        vertices.Clear();
+        triangles.Clear();
+        colors.Clear();
+        foreach (Vector3 dir in CustomMath.directions)
+        {
+            faces[dir].Clear();
+        }
+
+        int index = GetByteArrayIndex(new Vector3(8, 8, 8), chunkData.chunkSize);
+        int index2 = GetByteArrayIndex(new Vector3(8, 9, 8), chunkData.chunkSize);
+
+        chunkData.SetByteValue(index, 1);
+        chunkData.SetByteValue(index2, 1);
+
+        GenerateMeshGreedyFace(chunkData);
+        FinishMesh();
+
+    }
     public void GenerateChunk()
     {
         FullGenerate(chunkData);
@@ -260,19 +280,10 @@ public class TerrainChunk : MonoBehaviour
                     checkPos = intPos + wlDir[1] * length;
                 }
                 AddQuad(vertices, triangles, intPos, wlDir[0], width, wlDir[1], length, dir);
-                if(chunkData.LOD != 1)
+                Color color = new Color((float)r.NextDouble(), (float)r.NextDouble(), (float)r.NextDouble(), 1f);
+                for (int c = 0; c < 4; c++)
                 {
-                    for (int c = 0; c < 4; c++)
-                    {
-                        colors.Add(Color.red);
-                    }
-                }
-                else
-                {
-                    for(int c = 0; c < 4; c++)
-                    {
-                        colors.Add(Color.green);
-                    }
+                    colors.Add(color);
                 }
                 visited.Add(intPos);
             }
@@ -282,6 +293,7 @@ public class TerrainChunk : MonoBehaviour
         chunkData.colorArray = colors.ToArray();
         chunkData.jobComplete = true;
     }
+    static System.Random r = new System.Random();
     public static bool WithinChunkBounds(Vector3 pos, Vector3 chunkSize)
     {
         return pos.x >= 0 && pos.x < chunkSize.x && pos.y >= 0 && pos.y < chunkSize.y && pos.z >= 0 && pos.z < chunkSize.z;
@@ -372,7 +384,7 @@ public class TerrainChunk : MonoBehaviour
             meshCollider.sharedMesh = null;
         }
     }
-    static float vOffset = 0.001f;
+    static float vOffset = 0;
     /// <summary>
     /// Adds vertices and triangle indices for a quad to the given vertex/triangle list
     /// </summary>
@@ -384,43 +396,7 @@ public class TerrainChunk : MonoBehaviour
     /// <param name="normal">Normal vector of quad face</param>
     public static void AddQuad(List<Vector3> vertices, List<int> triangles, Vector3 pos, Vector3 widthDir, Vector3 lengthDir, Vector3 normal)
     {
-        //Calculate top and bottom left, right vertex positions based on given direction vectors
-        Vector3 vBottomLeft = Vector3.zero, vBottomRight = Vector3.zero, vTopLeft = Vector3.zero, vTopRight = Vector3.zero;
-        vBottomLeft = pos - widthDir*vOffset - lengthDir*vOffset;
-        vBottomRight = pos + widthDir + widthDir * vOffset - lengthDir*vOffset;
-        vTopLeft = pos + lengthDir - widthDir * vOffset + lengthDir * vOffset;
-        vTopRight = pos + widthDir + lengthDir + widthDir*vOffset + lengthDir*vOffset;
-
-        //If normal vector is left or forward flip the triangle to render on correct side (related to winding order)
-        int vIndex = vertices.Count;
-        if (normal == Vector3.left || normal == Vector3.forward || normal == Vector3.down)
-        {
-            //Add the triangle indices to the list in a counter-clockwise order
-            triangles.Add(vIndex);
-            triangles.Add(vIndex + 1);
-            triangles.Add(vIndex + 2);
-
-            triangles.Add(vIndex + 2);
-            triangles.Add(vIndex + 1);
-            triangles.Add(vIndex + 3);
-        }
-        else
-        {
-            //Add the triangle indices to the list in a clockwise order
-            triangles.Add(vIndex);
-            triangles.Add(vIndex + 2);
-            triangles.Add(vIndex + 1);
-
-            triangles.Add(vIndex + 2);
-            triangles.Add(vIndex + 3);
-            triangles.Add(vIndex + 1);
-        }
-
-        //Add the calculated vertices to the vertex list
-        vertices.Add(vBottomLeft);
-        vertices.Add(vBottomRight);
-        vertices.Add(vTopLeft);
-        vertices.Add(vTopRight);
+        AddQuad(vertices, triangles, pos, widthDir, 1f, lengthDir, 1f, normal);
     }
     public static void AddQuad(List<Vector3> vertices, List<int> triangles, Vector3 pos, Vector3 widthDir, float width, Vector3 lengthDir, float length, Vector3 normal)
     {

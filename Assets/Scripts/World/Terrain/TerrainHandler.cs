@@ -13,6 +13,7 @@ public class TerrainHandler : MonoBehaviour
     public Transform viewer;
     public Vector3Int viewDist;
     public Vector3Int chunkDimensions;
+    public GameObject testChunk;
 
     public Queue<GameObject> chunkPool = new Queue<GameObject>();
     /*
@@ -79,6 +80,13 @@ public class TerrainHandler : MonoBehaviour
             chunkObject.GetComponent<TerrainChunk>().InstantiateChunkData(chunkDimensions.x * chunkDimensions.y * chunkDimensions.z, settings);
             chunkPool.Enqueue(chunkObject);
         }
+        testChunk = Instantiate(chunkPrefab);
+        testChunk.transform.position = Vector3.zero;
+        testChunk.SetActive(true);
+        testChunk.GetComponent<TerrainChunk>().InstantiateChunkData(chunkDimensions.x * chunkDimensions.y * chunkDimensions.z, settings);
+        testChunk.GetComponent<TerrainChunk>().PrepareChunk(chunkCoord, chunkWorldPos, GetSavedData(chunkCoord));
+        testChunk.GetComponent<TerrainChunk>().GenerateChunkTest();
+
         maxChunks = viewDist.x * 2 * viewDist.y * 2 * viewDist.z * 2;
         //Run the chunk generaiton loop once on startup to make sure chunks are loaded in when the player spawns
         UpdateTerrain();
